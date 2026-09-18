@@ -109,6 +109,14 @@ public sealed class FakeDictationUi : IDictationUi
         Events.Add("error");
     }
 
+    public List<Flight.Core.Models.ModelDownloadProgress> DownloadProgressReports { get; } = [];
+
+    public void ShowModelDownloadProgress(Flight.Core.Models.ModelDownloadProgress progress)
+    {
+        DownloadProgressReports.Add(progress);
+        Events.Add("download");
+    }
+
     public void Hide() => Events.Add("hide");
 }
 

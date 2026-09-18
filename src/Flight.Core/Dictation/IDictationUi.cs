@@ -1,3 +1,5 @@
+using Flight.Core.Models;
+
 namespace Flight.Core.Dictation;
 
 /// <summary>
@@ -16,6 +18,9 @@ public interface IDictationUi
 
     /// <summary>Explicit, user-visible error state — never a silent failure.</summary>
     void ShowError(string message);
+
+    /// <summary>First-run model download/init progress — never a silent hang.</summary>
+    void ShowModelDownloadProgress(ModelDownloadProgress progress);
 
     void Hide();
 }
