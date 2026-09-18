@@ -1,3 +1,5 @@
+using Flight.Core.Dictation;
+using Flight.Core.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -14,7 +16,14 @@ public static class AppHost
     {
         var builder = Host.CreateApplicationBuilder();
 
-        // Feature services are registered here as they are built.
+        builder.Services.AddSingleton<FlightOptions>();
+        builder.Services.AddSingleton<FlightDatabase>();
+        builder.Services.AddSingleton<IDictationSessionRepository, SqliteDictationSessionRepository>();
+        builder.Services.AddSingleton<DictationOrchestrator>();
+
+        // Platform-bound services (hotkey, audio, STT/LLM engines, clipboard, UI)
+        // are registered by the caller: the WinUI shell provides real
+        // implementations, tests provide fakes.
         configureServices?.Invoke(builder.Services);
 
         return builder.Build();
