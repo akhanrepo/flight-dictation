@@ -5,8 +5,9 @@ Windows dictation / second-brain app for consultants. Full product context lives
 ## Tech stack (from PRD)
 
 - **App shell/UI:** C# + WinUI 3 (Windows App SDK), .NET 8
-- **Local STT:** whisper.cpp (quantized models)
-- **Local LLM:** ONNX Runtime GenAI vs llama.cpp (LLamaSharp) — decision deferred, pending latency/quality testing
+- **Local STT:** Whisper.net 1.9.x (whisper.cpp bindings), model `ggml-base.en-q5_1.bin`
+- **Local LLM:** **Decided: LLamaSharp 0.27.x (llama.cpp), CPU backend**, model Phi-4-mini-instruct Q4_K_M GGUF. Chosen for CPU-only mid-tier hardware. Kept behind `ITextCleaner` so the engine can be swapped. Run `Flight.App --benchmark` to measure real latency.
+- **Audio capture:** NAudio 2.2.1 (3.x requires .NET 9), 16kHz mono
 - **Cloud LLM:** optional toggle, budget-tier model, provider TBD; same interface as local inference
 - **Storage:** SQLite + sqlite-vec for the local vocabulary/context store
 - **Backend:** Supabase (accounts/auth/Postgres) + Stripe hosted checkout/portal
@@ -56,6 +57,14 @@ docs/               PRD and feature briefs
 - Unit tests target `Flight.Core` directly — no WinUI test harness. UI stays thin enough that it doesn't need one.
 - Prefer testing behavior through the DI container / public service interfaces over internals.
 - STT/LLM inference are wrapped behind interfaces so tests use fakes; no tests that require downloaded models or network.
+
+## Architecture (as built)
+
+- `DictationOrchestrator` (Core) is the state machine: Idle → Capturing → Processing → Preview → Idle, with Error on failure or timeout (`FlightOptions.ProcessingTimeout`). **The clipboard is written only in `ConfirmAsync`.** Keep it that way.
+- Platform services live in `Flight.App` and are registered in `App.xaml.cs`: `LowLevelKeyboardHook` (push-to-talk), `WasapiAudioCapturer`, `WindowsClipboardWriter`, and `DictationToastWindow` with `DictationUiPresenter`, which marshals calls to the UI thread.
+- Push-to-talk key: **Right Alt** (`VK_RMENU`), fixed. There's no remapping UI yet.
+- Data: `%LOCALAPPDATA%\Flight\flight.db` (SQLite `dictation_sessions`), models in `%LOCALAPPDATA%\Flight\models`, downloaded on first run.
+- Test fakes for every pipeline interface are in `tests/Flight.Tests/Fakes/Fakes.cs`. Reuse them.
 
 ## Build/run notes (environment quirks)
 
