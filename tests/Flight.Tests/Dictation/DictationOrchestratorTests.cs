@@ -16,12 +16,13 @@ public class DictationOrchestratorTests
     private readonly InMemorySessionRepository _sessions = new();
     private readonly FakeDictationUi _ui = new();
     private readonly FakeVocabularyLearningQueue _vocabularyLearning = new();
+    private readonly FakeSettingsStore _settings = new();
     private readonly FlightOptions _options = new();
 
     private DictationOrchestrator CreateStartedOrchestrator()
     {
         var orchestrator = new DictationOrchestrator(
-            _hotkey, _capturer, _stt, _cleaner, _clipboard, _sessions, _ui, _vocabularyLearning, _options,
+            _hotkey, _capturer, _stt, _cleaner, _clipboard, _sessions, _ui, _vocabularyLearning, _settings, _options,
             NullLogger<DictationOrchestrator>.Instance);
         orchestrator.Start();
         return orchestrator;

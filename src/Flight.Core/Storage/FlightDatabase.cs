@@ -72,6 +72,13 @@ public class FlightDatabase
                 -- gets a second row, it increments the first one's frequency.
                 CREATE UNIQUE INDEX IF NOT EXISTS ix_vocabulary_entries_term
                     ON vocabulary_entries (term COLLATE NOCASE);
+
+                -- Per-device settings; a single row, id pinned to 1.
+                CREATE TABLE IF NOT EXISTS settings (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    source_language TEXT NOT NULL,
+                    target_language TEXT NOT NULL
+                );
                 """;
             command.ExecuteNonQuery();
             _initialized = true;

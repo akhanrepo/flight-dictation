@@ -1,5 +1,6 @@
 using Flight.Core.Dictation;
 using Flight.Core.Llm;
+using Flight.Core.Settings;
 using Flight.Core.Storage;
 using Flight.Core.Vocabulary;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +22,7 @@ public static class AppHost
         builder.Services.AddSingleton<FlightOptions>();
         builder.Services.AddSingleton<FlightDatabase>();
         builder.Services.AddSingleton<IDictationSessionRepository, SqliteDictationSessionRepository>();
+        builder.Services.AddSingleton<ISettingsStore, SqliteSettingsStore>();
         builder.Services.AddSingleton<DictationOrchestrator>();
 
         // Vocabulary (feature #2). The embedding generator is platform-neutral

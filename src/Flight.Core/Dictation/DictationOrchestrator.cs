@@ -2,6 +2,7 @@ using Flight.Core.Audio;
 using Flight.Core.Clipboard;
 using Flight.Core.Input;
 using Flight.Core.Llm;
+using Flight.Core.Settings;
 using Flight.Core.Storage;
 using Flight.Core.Stt;
 using Flight.Core.Vocabulary;
@@ -25,11 +26,13 @@ public class DictationOrchestrator : IDisposable
     private readonly IDictationSessionRepository _sessions;
     private readonly IDictationUi _ui;
     private readonly IVocabularyLearningQueue _vocabularyLearning;
+    private readonly ISettingsStore _settings;
     private readonly FlightOptions _options;
     private readonly ILogger<DictationOrchestrator> _logger;
 
     private string? _pendingRawTranscript;
     private string? _pendingCleanedText;
+    private FlightSettings? _pendingSettings;
 
     public DictationState State { get; private set; } = DictationState.Idle;
 
@@ -45,6 +48,7 @@ public class DictationOrchestrator : IDisposable
         IDictationSessionRepository sessions,
         IDictationUi ui,
         IVocabularyLearningQueue vocabularyLearning,
+        ISettingsStore settings,
         FlightOptions options,
         ILogger<DictationOrchestrator> logger)
     {
@@ -56,6 +60,7 @@ public class DictationOrchestrator : IDisposable
         _sessions = sessions;
         _ui = ui;
         _vocabularyLearning = vocabularyLearning;
+        _settings = settings;
         _options = options;
         _logger = logger;
     }
@@ -87,21 +92,40 @@ public class DictationOrchestrator : IDisposable
         }
 
         var samples = _capturer.Stop();
+
+        // Settings are snapshotted per dictation, so a language or mode change
+        // mid-session takes effect on the next one without a restart, and an
+        // in-flight dictation can never see a half-applied change.
+        var settings = _settings.Current;
+
         State = DictationState.Processing;
         _ui.ShowProcessing();
-        ProcessingTask = ProcessAsync(samples);
+        ProcessingTask = ProcessAsync(samples, settings);
     }
 
-    private async Task ProcessAsync(float[] samples)
+    private async Task ProcessAsync(float[] samples, FlightSettings settings)
     {
         try
         {
             using var timeout = new CancellationTokenSource(_options.ProcessingTimeout);
-            var raw = await _stt.TranscribeAsync(samples, timeout.Token).WaitAsync(timeout.Token);
-            var cleaned = await _cleaner.CleanAsync(raw, timeout.Token).WaitAsync(timeout.Token);
+
+            // STT runs in the user's selected source language, not an
+            // auto-detected one.
+            var raw = await _stt
+                .TranscribeAsync(samples, settings.SourceLanguage, timeout.Token)
+                .WaitAsync(timeout.Token);
+
+            // When source and target match this is cleanup only; when they
+            // differ the same step also translates.
+            var cleaned = await _cleaner
+                .CleanAsync(
+                    new TranscriptCleanupRequest(raw, settings.SourceLanguage, settings.TargetLanguage),
+                    timeout.Token)
+                .WaitAsync(timeout.Token);
 
             _pendingRawTranscript = raw;
             _pendingCleanedText = cleaned;
+            _pendingSettings = settings;
             State = DictationState.Preview;
             _ui.ShowPreview(cleaned);
         }
@@ -110,6 +134,7 @@ public class DictationOrchestrator : IDisposable
             _logger.LogError(ex, "Dictation processing failed");
             _pendingRawTranscript = null;
             _pendingCleanedText = null;
+            _pendingSettings = null;
             State = DictationState.Error;
             _ui.ShowError(ex is OperationCanceledException
                 ? "Processing timed out."
@@ -124,16 +149,23 @@ public class DictationOrchestrator : IDisposable
     /// </summary>
     public async Task ConfirmAsync()
     {
-        if (State != DictationState.Preview || _pendingCleanedText is null || _pendingRawTranscript is null)
+        if (State != DictationState.Preview
+            || _pendingCleanedText is null
+            || _pendingRawTranscript is null
+            || _pendingSettings is null)
         {
             return;
         }
 
+        // The preview showed — and this copies — the cleaned, target-language
+        // text, not the raw source-language transcript.
         _clipboard.SetText(_pendingCleanedText);
         var stored = await _sessions.AddAsync(new DictationSession
         {
             RawTranscript = _pendingRawTranscript,
             CleanedOutput = _pendingCleanedText,
+            SourceLanguage = _pendingSettings.SourceLanguage,
+            TargetLanguage = _pendingSettings.TargetLanguage,
             LlmMode = "local",
         });
 
@@ -169,6 +201,7 @@ public class DictationOrchestrator : IDisposable
     {
         _pendingRawTranscript = null;
         _pendingCleanedText = null;
+        _pendingSettings = null;
         State = DictationState.Idle;
         _ui.Hide();
     }

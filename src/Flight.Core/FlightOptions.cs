@@ -35,9 +35,14 @@ public class FlightOptions
     /// </summary>
     public double VocabularyContextMinimumSimilarity { get; set; } = 0.25;
 
+    /// <summary>
+    /// Multilingual whisper base (not the <c>.en</c> variant): feature #3's
+    /// five non-English source languages can't be transcribed by the
+    /// English-only model.
+    /// </summary>
     public ModelSpec SttModel { get; set; } = new(
-        "ggml-base.en-q5_1.bin",
-        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-q5_1.bin");
+        "ggml-base-q5_1.bin",
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin");
 
     public ModelSpec LlmModel { get; set; } = new(
         "Phi-4-mini-instruct-Q4_K_M.gguf",

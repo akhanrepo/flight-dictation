@@ -100,7 +100,7 @@ public class VocabularyLearningTests
         var orchestrator = new DictationOrchestrator(
             hotkey, new FakeAudioCapturer(), new FakeSpeechToText(), new FakeTextCleaner(),
             new OrderRecordingClipboard(clipboard, order), new InMemorySessionRepository(),
-            new FakeDictationUi(), queue, new FlightOptions(),
+            new FakeDictationUi(), queue, new FakeSettingsStore(), new FlightOptions(),
             NullLogger<DictationOrchestrator>.Instance);
         orchestrator.Start();
 
@@ -125,7 +125,7 @@ public class VocabularyLearningTests
         var orchestrator = new DictationOrchestrator(
             hotkey, new FakeAudioCapturer(), new FakeSpeechToText(), cleaner,
             new FakeClipboardWriter(), sessions, new FakeDictationUi(), queue,
-            new FlightOptions(), NullLogger<DictationOrchestrator>.Instance);
+            new FakeSettingsStore(), new FlightOptions(), NullLogger<DictationOrchestrator>.Instance);
         orchestrator.Start();
 
         hotkey.Press();
@@ -147,7 +147,7 @@ public class VocabularyLearningTests
         var orchestrator = new DictationOrchestrator(
             hotkey, new FakeAudioCapturer(), new FakeSpeechToText(), new FakeTextCleaner(),
             new FakeClipboardWriter(), new InMemorySessionRepository(), new FakeDictationUi(),
-            queue, new FlightOptions(), NullLogger<DictationOrchestrator>.Instance);
+            queue, new FakeSettingsStore(), new FlightOptions(), NullLogger<DictationOrchestrator>.Instance);
         orchestrator.Start();
 
         hotkey.Press();

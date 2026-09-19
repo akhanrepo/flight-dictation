@@ -3,6 +3,8 @@ using Flight.Core.Clipboard;
 using Flight.Core.Dictation;
 using Flight.Core.Input;
 using Flight.Core.Llm;
+using Flight.Core.Languages;
+using Flight.Core.Settings;
 using Flight.Core.Storage;
 using Flight.Core.Stt;
 using Flight.Core.Vocabulary;
@@ -46,12 +48,17 @@ public sealed class FakeSpeechToText : ISpeechToText
 {
     public string TranscriptToReturn { get; set; } = "um so hello uh world";
     public float[]? ReceivedSamples { get; private set; }
+    public string? ReceivedLanguage { get; private set; }
     public Exception? ExceptionToThrow { get; set; }
     public TimeSpan Delay { get; set; } = TimeSpan.Zero;
 
-    public async Task<string> TranscribeAsync(float[] samples, CancellationToken cancellationToken = default)
+    public async Task<string> TranscribeAsync(
+        float[] samples,
+        string languageCode = SupportedLanguages.DefaultCode,
+        CancellationToken cancellationToken = default)
     {
         ReceivedSamples = samples;
+        ReceivedLanguage = languageCode;
         if (Delay > TimeSpan.Zero)
         {
             await Task.Delay(Delay, cancellationToken);
@@ -67,12 +74,13 @@ public sealed class FakeSpeechToText : ISpeechToText
 public sealed class FakeTextCleaner : ITextCleaner
 {
     public string CleanedToReturn { get; set; } = "Hello, world.";
-    public string? ReceivedRawTranscript { get; private set; }
+    public TranscriptCleanupRequest? ReceivedRequest { get; private set; }
+    public string? ReceivedRawTranscript => ReceivedRequest?.RawTranscript;
     public Exception? ExceptionToThrow { get; set; }
 
-    public Task<string> CleanAsync(string rawTranscript, CancellationToken cancellationToken = default)
+    public Task<string> CleanAsync(TranscriptCleanupRequest request, CancellationToken cancellationToken = default)
     {
-        ReceivedRawTranscript = rawTranscript;
+        ReceivedRequest = request;
         if (ExceptionToThrow is not null)
         {
             throw ExceptionToThrow;
@@ -235,5 +243,19 @@ public sealed class FakeVocabularyLearningQueue : IVocabularyLearningQueue
     {
         Enqueued.Add(session);
         OnEnqueue?.Invoke();
+    }
+}
+
+public sealed class FakeSettingsStore : ISettingsStore
+{
+    public FakeSettingsStore(FlightSettings? initial = null) => Current = initial ?? new FlightSettings();
+
+    public FlightSettings Current { get; private set; }
+
+    public Task<FlightSettings> UpdateAsync(FlightSettings settings, CancellationToken cancellationToken = default)
+    {
+        settings.Validate();
+        Current = settings;
+        return Task.FromResult(settings);
     }
 }

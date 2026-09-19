@@ -10,6 +10,7 @@ using Flight.Core.Hosting;
 using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Models;
+using Flight.Core.Settings;
 using Flight.Core.Stt;
 using Flight.Core.Tools;
 using Flight.Core.Vocabulary;
@@ -58,6 +59,7 @@ public partial class App : Application
 
         _orchestrator = Host.Services.GetRequiredService<DictationOrchestrator>();
         _window.Orchestrator = _orchestrator;
+        _window.OpenSettings = ShowSettings;
 
         try
         {
@@ -83,6 +85,16 @@ public partial class App : Application
         }
 
         _orchestrator.Start();
+    }
+
+    private SettingsWindow? _settingsWindow;
+
+    private void ShowSettings()
+    {
+        // One settings window; re-activate rather than stacking duplicates.
+        _settingsWindow ??= new SettingsWindow(Host.Services.GetRequiredService<ISettingsStore>());
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Activate();
     }
 
     /// <summary>

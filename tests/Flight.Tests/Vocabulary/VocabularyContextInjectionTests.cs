@@ -38,7 +38,7 @@ public class VocabularyContextInjectionTests
         await StoreTermAsync("Contoso");
         var cleaner = new PromptTextCleaner(_llm, CreateProvider());
 
-        await cleaner.CleanAsync("um we met with contosoh yesterday");
+        await cleaner.CleanAsync(new TranscriptCleanupRequest("um we met with contosoh yesterday"));
 
         var request = Assert.Single(_llm.Requests);
         Assert.Contains("Contoso", request.SystemPrompt);
@@ -54,7 +54,7 @@ public class VocabularyContextInjectionTests
         await StoreTermAsync("zzzqqqxwv");
         var cleaner = new PromptTextCleaner(_llm, CreateProvider());
 
-        await cleaner.CleanAsync("we met with contoso yesterday");
+        await cleaner.CleanAsync(new TranscriptCleanupRequest("we met with contoso yesterday"));
 
         Assert.Contains("Contoso", _llm.LastRequest!.SystemPrompt);
         Assert.DoesNotContain("zzzqqqxwv", _llm.LastRequest.SystemPrompt);
@@ -84,7 +84,7 @@ public class VocabularyContextInjectionTests
         _llm.ResponseToReturn = "Hello, world.";
         var cleaner = new PromptTextCleaner(_llm, CreateProvider());
 
-        var cleaned = await cleaner.CleanAsync("um hello uh world");
+        var cleaned = await cleaner.CleanAsync(new TranscriptCleanupRequest("um hello uh world"));
 
         Assert.Equal("Hello, world.", cleaned);
         Assert.Equal(PromptTextCleaner.SystemPrompt, _llm.LastRequest!.SystemPrompt);
@@ -101,7 +101,7 @@ public class VocabularyContextInjectionTests
         _llm.ResponseToReturn = "We met with Contoso yesterday.";
         var cleaner = new PromptTextCleaner(_llm, CreateProvider());
 
-        var cleaned = await cleaner.CleanAsync("um we met with contoso yesterday");
+        var cleaned = await cleaner.CleanAsync(new TranscriptCleanupRequest("um we met with contoso yesterday"));
 
         Assert.Equal("um we met with contoso yesterday", _llm.LastRequest!.UserPrompt);
         Assert.Equal("We met with Contoso yesterday.", cleaned);
@@ -117,7 +117,7 @@ public class VocabularyContextInjectionTests
             NullLogger<VocabularyContextProvider>.Instance);
         var cleaner = new PromptTextCleaner(_llm, provider);
 
-        var cleaned = await cleaner.CleanAsync("um hello uh world");
+        var cleaned = await cleaner.CleanAsync(new TranscriptCleanupRequest("um hello uh world"));
 
         Assert.Equal("Hello, world.", cleaned);
         Assert.Equal(PromptTextCleaner.SystemPrompt, _llm.LastRequest!.SystemPrompt);

@@ -18,6 +18,9 @@ public sealed partial class DictationToastWindow : Window
     /// <summary>Set by App after the orchestrator is resolved (the orchestrator itself needs the UI).</summary>
     public DictationOrchestrator? Orchestrator { get; set; }
 
+    /// <summary>Opens the settings window. Supplied by App, which owns the DI container.</summary>
+    public Action? OpenSettings { get; set; }
+
     public DictationToastWindow()
     {
         InitializeComponent();
@@ -107,6 +110,8 @@ public sealed partial class DictationToastWindow : Window
         DownloadBar.Visibility = Visibility.Collapsed;
         PreviewButtons.Visibility = Visibility.Collapsed;
     }
+
+    private void OnSettingsClicked(object sender, RoutedEventArgs e) => OpenSettings?.Invoke();
 
     private async void OnConfirmClicked(object sender, RoutedEventArgs e)
     {
