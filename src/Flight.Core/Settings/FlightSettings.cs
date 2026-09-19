@@ -1,4 +1,5 @@
 using Flight.Core.Languages;
+using Flight.Core.Llm;
 
 namespace Flight.Core.Settings;
 
@@ -14,6 +15,12 @@ public record FlightSettings
 
     /// <summary>Language the output is produced in. English by default.</summary>
     public string TargetLanguage { get; init; } = SupportedLanguages.DefaultCode;
+
+    /// <summary>
+    /// Which engine performs LLM cleanup. The PRD's "LLM toggle preference".
+    /// Local is the default and is free and unrestricted forever.
+    /// </summary>
+    public LlmMode LlmMode { get; init; } = LlmMode.Local;
 
     /// <summary>True when the pipeline should translate rather than only clean up.</summary>
     public bool IsTranslating =>

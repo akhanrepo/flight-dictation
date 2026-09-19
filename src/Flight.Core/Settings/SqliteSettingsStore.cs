@@ -1,3 +1,4 @@
+using Flight.Core.Llm;
 using Flight.Core.Storage;
 
 namespace Flight.Core.Settings;
@@ -39,7 +40,7 @@ public class SqliteSettingsStore : ISettingsStore
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT source_language, target_language
+            SELECT source_language, target_language, llm_mode
             FROM settings
             WHERE id = 1;
             """;
@@ -55,6 +56,7 @@ public class SqliteSettingsStore : ISettingsStore
         {
             SourceLanguage = reader.GetString(0),
             TargetLanguage = reader.GetString(1),
+            LlmMode = LlmModes.Parse(reader.GetString(2)),
         };
     }
 
@@ -63,14 +65,16 @@ public class SqliteSettingsStore : ISettingsStore
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO settings (id, source_language, target_language)
-            VALUES (1, $source, $target)
+            INSERT INTO settings (id, source_language, target_language, llm_mode)
+            VALUES (1, $source, $target, $llmMode)
             ON CONFLICT (id) DO UPDATE SET
                 source_language = excluded.source_language,
-                target_language = excluded.target_language;
+                target_language = excluded.target_language,
+                llm_mode = excluded.llm_mode;
             """;
         command.Parameters.AddWithValue("$source", settings.SourceLanguage);
         command.Parameters.AddWithValue("$target", settings.TargetLanguage);
+        command.Parameters.AddWithValue("$llmMode", settings.LlmMode.ToStorageValue());
         command.ExecuteNonQuery();
     }
 }

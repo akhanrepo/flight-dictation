@@ -7,10 +7,14 @@ namespace Flight.Core.Llm;
 /// <param name="TargetLanguage">
 /// Language the output must be in. Equal to the source for cleanup-only.
 /// </param>
+/// <param name="LlmMode">
+/// Engine to run this cleanup on, captured when the dictation started.
+/// </param>
 public record TranscriptCleanupRequest(
     string RawTranscript,
     string SourceLanguage = SupportedLanguages.DefaultCode,
-    string TargetLanguage = SupportedLanguages.DefaultCode)
+    string TargetLanguage = SupportedLanguages.DefaultCode,
+    LlmMode LlmMode = LlmMode.Local)
 {
     public bool RequiresTranslation =>
         !string.Equals(SourceLanguage, TargetLanguage, StringComparison.OrdinalIgnoreCase);

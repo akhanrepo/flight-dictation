@@ -1,5 +1,6 @@
 using Flight.App.Audio;
 using Flight.App.Clipboard;
+using Flight.App.Security;
 using Flight.App.Views;
 using Flight.App.Win32;
 using Flight.Core;
@@ -10,6 +11,7 @@ using Flight.Core.Hosting;
 using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Models;
+using Flight.Core.Security;
 using Flight.Core.Settings;
 using Flight.Core.Stt;
 using Flight.Core.Tools;
@@ -37,7 +39,8 @@ public partial class App : Application
             services.AddSingleton<IAudioCapturer, WasapiAudioCapturer>();
             services.AddSingleton<ISpeechToText, WhisperSpeechToText>();
             services.AddSingleton<LlamaCompletion>();
-            services.AddSingleton<ILlmCompletion>(sp => sp.GetRequiredService<LlamaCompletion>());
+            services.AddSingleton(sp => new LocalLlmEngine(sp.GetRequiredService<LlamaCompletion>()));
+            services.AddSingleton<ISecretStore, DpapiSecretStore>();
             // Real embeddings come from the same loaded GGUF, with the
             // model-free generator as the fallback path.
             services.AddSingleton<IEmbeddingGenerator>(sp => new LlamaEmbeddingGenerator(
@@ -92,7 +95,9 @@ public partial class App : Application
     private void ShowSettings()
     {
         // One settings window; re-activate rather than stacking duplicates.
-        _settingsWindow ??= new SettingsWindow(Host.Services.GetRequiredService<ISettingsStore>());
+        _settingsWindow ??= new SettingsWindow(
+            Host.Services.GetRequiredService<ISettingsStore>(),
+            Host.Services.GetRequiredService<ISecretStore>());
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Activate();
     }

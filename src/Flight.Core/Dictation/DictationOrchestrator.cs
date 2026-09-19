@@ -119,7 +119,11 @@ public class DictationOrchestrator : IDisposable
             // differ the same step also translates.
             var cleaned = await _cleaner
                 .CleanAsync(
-                    new TranscriptCleanupRequest(raw, settings.SourceLanguage, settings.TargetLanguage),
+                    new TranscriptCleanupRequest(
+                        raw,
+                        settings.SourceLanguage,
+                        settings.TargetLanguage,
+                        settings.LlmMode),
                     timeout.Token)
                 .WaitAsync(timeout.Token);
 
@@ -166,7 +170,9 @@ public class DictationOrchestrator : IDisposable
             CleanedOutput = _pendingCleanedText,
             SourceLanguage = _pendingSettings.SourceLanguage,
             TargetLanguage = _pendingSettings.TargetLanguage,
-            LlmMode = "local",
+            // Records which engine actually produced this text. Feature #5
+            // reads nothing but these rows to compute the cloud trial window.
+            LlmMode = _pendingSettings.LlmMode.ToStorageValue(),
         });
 
         // Fire-and-forget by contract: Enqueue returns immediately.

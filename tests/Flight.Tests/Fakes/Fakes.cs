@@ -3,6 +3,7 @@ using Flight.Core.Clipboard;
 using Flight.Core.Dictation;
 using Flight.Core.Input;
 using Flight.Core.Llm;
+using Flight.Core.Security;
 using Flight.Core.Languages;
 using Flight.Core.Settings;
 using Flight.Core.Storage;
@@ -146,6 +147,9 @@ public sealed class InMemorySessionRepository : IDictationSessionRepository
 
 public sealed class FakeLlmCompletion : ILlmCompletion
 {
+    public FakeLlmCompletion(string name = "fake") => Name = name;
+
+    public string Name { get; }
     public List<LlmRequest> Requests { get; } = [];
     public LlmRequest? LastRequest => Requests.Count == 0 ? null : Requests[^1];
     public string ResponseToReturn { get; set; } = "Hello, world.";
@@ -257,5 +261,48 @@ public sealed class FakeSettingsStore : ISettingsStore
         settings.Validate();
         Current = settings;
         return Task.FromResult(settings);
+    }
+}
+
+public sealed class InMemorySecretStore : ISecretStore
+{
+    private readonly Dictionary<string, string> _secrets = [];
+
+    public InMemorySecretStore(string? cloudApiKey = null)
+    {
+        if (cloudApiKey is not null)
+        {
+            _secrets[SecretNames.CloudLlmApiKey] = cloudApiKey;
+        }
+    }
+
+    public string? Get(string name) => _secrets.TryGetValue(name, out var value) ? value : null;
+
+    public void Set(string name, string value) => _secrets[name] = value;
+
+    public void Remove(string name) => _secrets.Remove(name);
+}
+
+/// <summary>Serves a canned HTTP response, or throws, without a network.</summary>
+public sealed class StubHttpMessageHandler : HttpMessageHandler
+{
+    private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _handler;
+
+    public StubHttpMessageHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler) =>
+        _handler = handler;
+
+    public List<HttpRequestMessage> Requests { get; } = [];
+    public string? LastRequestBody { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Requests.Add(request);
+        if (request.Content is not null)
+        {
+            LastRequestBody = await request.Content.ReadAsStringAsync(cancellationToken);
+        }
+
+        return await _handler(request, cancellationToken);
     }
 }

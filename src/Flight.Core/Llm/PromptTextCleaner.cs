@@ -44,7 +44,7 @@ public class PromptTextCleaner : ITextCleaner
         var systemPrompt = BuildSystemPrompt(request, terms);
 
         return await _llm.CompleteAsync(
-            new LlmRequest(systemPrompt, request.RawTranscript),
+            new LlmRequest(systemPrompt, request.RawTranscript) { Mode = request.LlmMode },
             cancellationToken);
     }
 

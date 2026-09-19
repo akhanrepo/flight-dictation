@@ -1,4 +1,6 @@
 using Flight.Core.Languages;
+using Flight.Core.Llm;
+using Flight.Core.Security;
 using Flight.Core.Settings;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -14,11 +16,13 @@ namespace Flight.App.Views;
 public sealed partial class SettingsWindow : Window
 {
     private readonly ISettingsStore _settings;
+    private readonly ISecretStore _secrets;
     private bool _loading;
 
-    public SettingsWindow(ISettingsStore settings)
+    public SettingsWindow(ISettingsStore settings, ISecretStore secrets)
     {
         _settings = settings;
+        _secrets = secrets;
         InitializeComponent();
         Title = "Flight settings";
         Load();
@@ -35,7 +39,16 @@ public sealed partial class SettingsWindow : Window
             var current = _settings.Current;
             SourceLanguageBox.SelectedItem = SupportedLanguages.Get(current.SourceLanguage);
             TargetLanguageBox.SelectedItem = SupportedLanguages.Get(current.TargetLanguage);
+            CloudModeToggle.IsOn = current.LlmMode == LlmMode.Cloud;
+
+            // The saved key is never rendered back; an empty box with a saved
+            // key means "unchanged".
+            ApiKeyBox.PlaceholderText = _secrets.Get(SecretNames.CloudLlmApiKey) is null
+                ? "Stored encrypted on this device"
+                : "A key is saved. Type to replace it.";
+
             UpdateStatus(current);
+            UpdateEngineStatus(current);
         }
         finally
         {
@@ -67,6 +80,59 @@ public sealed partial class SettingsWindow : Window
         {
             StatusText.Text = $"Couldn't save that: {ex.Message}";
         }
+    }
+
+    private async void OnCloudModeToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        var updated = _settings.Current with
+        {
+            LlmMode = CloudModeToggle.IsOn ? LlmMode.Cloud : LlmMode.Local,
+        };
+
+        try
+        {
+            await _settings.UpdateAsync(updated);
+            UpdateEngineStatus(updated);
+        }
+        catch (Exception ex)
+        {
+            EngineStatusText.Text = $"Couldn't save that: {ex.Message}";
+        }
+    }
+
+    private void OnApiKeyChanged(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        var key = ApiKeyBox.Password.Trim();
+        if (key.Length == 0)
+        {
+            return;
+        }
+
+        _secrets.Set(SecretNames.CloudLlmApiKey, key);
+        EngineStatusText.Text = "Key saved, encrypted on this device.";
+    }
+
+    private void UpdateEngineStatus(FlightSettings settings)
+    {
+        if (settings.LlmMode == LlmMode.Local)
+        {
+            EngineStatusText.Text = "Local cleanup. Free, unlimited, works offline.";
+            return;
+        }
+
+        EngineStatusText.Text = _secrets.Get(SecretNames.CloudLlmApiKey) is null
+            ? "Cloud cleanup needs an API key. Add one above, or switch back to local."
+            : "Cloud cleanup. Takes effect on your next dictation.";
     }
 
     private void UpdateStatus(FlightSettings settings)

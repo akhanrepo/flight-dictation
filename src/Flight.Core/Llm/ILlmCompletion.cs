@@ -9,6 +9,13 @@ public record LlmRequest(string SystemPrompt, string UserPrompt)
 
     /// <summary>Near-greedy by default: every use here is a faithful transform, not creative writing.</summary>
     public float Temperature { get; init; } = 0.1f;
+
+    /// <summary>
+    /// Which engine to route to. Carried on the request rather than read live,
+    /// so a mid-dictation toggle can't switch engines halfway through the one
+    /// already running. Null means "whatever is currently selected".
+    /// </summary>
+    public LlmMode? Mode { get; init; }
 }
 
 /// <summary>

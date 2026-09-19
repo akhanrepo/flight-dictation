@@ -22,6 +22,27 @@ public class FlightOptions
     public TimeSpan ProcessingTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
     /// <summary>
+    /// OpenAI-compatible chat-completions endpoint. The PRD leaves the cloud
+    /// provider open; every budget-tier candidate (OpenAI, DeepSeek, Groq,
+    /// Gemini's compat endpoint) speaks this shape, so switching provider is
+    /// this setting plus <see cref="CloudLlmModel"/>, not a code change.
+    /// </summary>
+    public Uri CloudLlmEndpoint { get; set; } = new("https://api.openai.com/v1/chat/completions");
+
+    /// <summary>
+    /// Budget-tier by requirement, not by accident — the PRD rules out
+    /// frontier models for the production cloud toggle.
+    /// </summary>
+    public string CloudLlmModel { get; set; } = "gpt-4o-mini";
+
+    /// <summary>
+    /// Ceiling on a single cloud call. Shorter than
+    /// <see cref="ProcessingTimeout"/>: a network round trip that slow is a
+    /// failure worth telling the user about, not something to wait out.
+    /// </summary>
+    public TimeSpan CloudLlmTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// How many learned terms are injected into the cleanup prompt. Kept small
     /// deliberately: every term is prompt tokens, and prompt tokens are local
     /// inference latency on CPU-only hardware.

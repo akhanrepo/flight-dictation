@@ -77,7 +77,8 @@ public class FlightDatabase
                 CREATE TABLE IF NOT EXISTS settings (
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     source_language TEXT NOT NULL,
-                    target_language TEXT NOT NULL
+                    target_language TEXT NOT NULL,
+                    llm_mode TEXT NOT NULL DEFAULT 'local'
                 );
                 """;
             command.ExecuteNonQuery();

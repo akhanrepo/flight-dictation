@@ -37,7 +37,15 @@ public static class AppHost
         builder.Services.AddSingleton<IVocabularyLearningQueue>(
             sp => sp.GetRequiredService<BackgroundVocabularyLearningQueue>());
 
-        // Cleanup runs over whichever ILlmCompletion the caller registers.
+        // LLM routing (feature #4). The caller registers the local engine as
+        // LocalLlmEngine; everything downstream resolves ILlmCompletion and
+        // gets the router, so it never learns which engine ran.
+        builder.Services.AddSingleton(_ => new HttpClient());
+        builder.Services.AddSingleton<CloudLlmCompletion>();
+        builder.Services.AddSingleton(sp => new CloudLlmEngine(sp.GetRequiredService<CloudLlmCompletion>()));
+        builder.Services.AddSingleton<ILlmCompletion, LlmModeRouter>();
+
+        // Cleanup runs over whichever engine the router selects.
         builder.Services.AddSingleton<ITextCleaner, PromptTextCleaner>();
 
         // Platform-bound services (hotkey, audio, STT/LLM engines, clipboard, UI)

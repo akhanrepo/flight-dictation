@@ -14,6 +14,9 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0" Text="Language" Style="{ThemeResource SubtitleTextBlockStyle}" />
@@ -39,6 +42,23 @@
                    TextWrapping="Wrap"
                    Style="{ThemeResource CaptionTextBlockStyle}" />
 
-        <Button Grid.Row="4" Content="Close" Click="OnCloseClicked" HorizontalAlignment="Right" />
+        <TextBlock Grid.Row="4" Text="Cleanup engine" Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+        <StackPanel Grid.Row="5" Spacing="6">
+            <ToggleSwitch x:Name="CloudModeToggle"
+                          Header="Use cloud model"
+                          OffContent="Local (free, private, offline)"
+                          OnContent="Cloud (needs an API key)"
+                          Toggled="OnCloudModeToggled" />
+            <PasswordBox x:Name="ApiKeyBox"
+                         Header="Cloud API key"
+                         PlaceholderText="Stored encrypted on this device"
+                         PasswordChanged="OnApiKeyChanged" />
+            <TextBlock x:Name="EngineStatusText"
+                       TextWrapping="Wrap"
+                       Style="{ThemeResource CaptionTextBlockStyle}" />
+        </StackPanel>
+
+        <Button Grid.Row="6" Content="Close" Click="OnCloseClicked" HorizontalAlignment="Right" />
     </Grid>
 </Window>
