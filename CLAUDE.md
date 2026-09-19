@@ -5,21 +5,21 @@ Windows dictation / second-brain app for consultants. Full product context lives
 ## Tech stack (from PRD)
 
 - **App shell/UI:** C# + WinUI 3 (Windows App SDK), .NET 8
-- **Local STT:** Whisper.net 1.9.x (whisper.cpp bindings), model `ggml-base.en-q5_1.bin`
-- **Local LLM:** **Decided: LLamaSharp 0.27.x (llama.cpp), CPU backend**, model Phi-4-mini-instruct Q4_K_M GGUF. Chosen for CPU-only mid-tier hardware. Kept behind `ITextCleaner` so the engine can be swapped. Run `Flight.App --benchmark` to measure real latency.
+- **Local STT:** Whisper.net 1.9.x (whisper.cpp bindings), model `ggml-base-q5_1.bin` — the **multilingual** base model, not the `.en` variant. Feature #3's five non-English source languages need it.
+- **Local LLM:** **Decided: LLamaSharp 0.27.x (llama.cpp), CPU backend**, model Phi-4-mini-instruct Q4_K_M GGUF. Chosen for CPU-only mid-tier hardware. Engines sit behind `ILlmCompletion`; `ITextCleaner` is a consumer of it, not an engine. Run `Flight.App --benchmark` to measure real latency.
 - **Audio capture:** NAudio 2.2.1 (3.x requires .NET 9), 16kHz mono
-- **Cloud LLM:** optional toggle, budget-tier model, provider TBD; same interface as local inference
-- **Storage:** SQLite + sqlite-vec for the local vocabulary/context store
-- **Backend:** Supabase (accounts/auth/Postgres) + Stripe hosted checkout/portal
+- **Cloud LLM:** **Decided: OpenAI `gpt-4o-mini` over the OpenAI-compatible `/chat/completions` shape.** Endpoint and model are `FlightOptions` settings, so moving to DeepSeek/Groq/Gemini-compat is config, not code. API key lives in `ISecretStore` (Windows DPAPI in the shell) — never in options or plaintext config.
+- **Storage:** SQLite for the local vocabulary/context store. **sqlite-vec is not used**: it's a native loadable extension needing a per-RID binary, which would put a native download in the test path. Embeddings are float32 BLOBs ranked by cosine similarity inside `SqliteVocabularyRepository` — moving to a `vec0` virtual table later is a change inside that one class.
+- **Backend:** Supabase (GoTrue auth + two Edge Functions: `entitlement`, `stripe-checkout`/`stripe-portal`) + Stripe hosted checkout/portal. The Stripe secret key lives in the backend and never reaches the client. `FlightOptions.SupabaseUrl`/`SupabaseAnonKey` are set at packaging time.
 - **Packaging:** MSIX or installer with auto-updater; models downloaded on first run
 
 ## MVP scope (build order)
 
 1. Core dictation loop — hotkey, local STT, local LLM cleanup, preview toast, clipboard copy on confirm
-2. Automatic vocabulary/context building from confirmed dictations
-3. Bidirectional translation (up to 5 languages)
-4. Cloud LLM toggle behind the same inference interface as #1
-5. Account + subscription entitlement (Supabase + Stripe) — deliberately last
+2. Automatic vocabulary/context building from confirmed dictations — **built**
+3. Bidirectional translation (up to 5 languages) — **built**
+4. Cloud LLM toggle behind the same inference interface as #1 — **built**
+5. Account + subscription entitlement (Supabase + Stripe) — **built**
 
 ## Explicit non-goals (do not build, do not design for prematurely)
 
@@ -65,9 +65,16 @@ docs/               PRD and feature briefs
 - Push-to-talk key: **Right Alt** (`VK_RMENU`), fixed. There's no remapping UI yet.
 - Data: `%LOCALAPPDATA%\Flight\flight.db` (SQLite `dictation_sessions`), models in `%LOCALAPPDATA%\Flight\models`, downloaded on first run.
 - Test fakes for every pipeline interface are in `tests/Flight.Tests/Fakes/Fakes.cs`. Reuse them.
+- **Vocabulary (feature #2):** `BackgroundVocabularyLearningQueue` drains a channel off the dictation loop. `ConfirmAsync` writes the clipboard, persists, *then* enqueues — that order is an acceptance criterion, don't reorder it. `PromptTextCleaner` injects the top-K relevant terms into the cleanup system prompt before inference; an empty store yields the unmodified prompt.
+- Extraction and cleanup both run through `ILlmCompletion`, so they follow whichever engine is active with no extra wiring.
+- **Entitlement (feature #5):** decided policy — trial **30 days** from the first cloud dictation; entitlement cache refreshed when older than **24h**; **7-day** offline grace; past that, or with no cache, cloud **fails closed** (local is the free tier and needs no verification, so the usual fail-open instinct is wrong here). Trial start is `MIN(created_at) WHERE llm_mode='cloud'`, so pre-existing cloud history back-dates the trial rather than resetting it on reinstall.
+- `EntitlementGatedLlmCompletion` wraps the **cloud engine only**, inside `CloudLlmEngine`. Two guarantees are structural because of that placement: local dictation never runs an entitlement check, and a block always precedes the API call. Don't move it up to the router.
+- **LLM routing (feature #4):** `LlmModeRouter` is the registered `ILlmCompletion`; the local and cloud engines are wrapped in `LocalLlmEngine`/`CloudLlmEngine` so DI can tell three `ILlmCompletion`s apart. Routing comes from `LlmRequest.Mode` (set from the per-dictation settings snapshot), falling back to the current setting for background work. **There is no cloud→local fallback** — a cloud failure is an explicit error state, by requirement.
+- **Languages (feature #3):** `SupportedLanguages.All` is the single source of truth for the six languages. Source language is user-selected, never auto-detected. `SqliteSettingsStore` caches the `settings` row in memory; the orchestrator snapshots `ISettingsStore.Current` at hotkey-release, so a change lands on the *next* dictation and can't affect one in flight. Cleanup and translation are one LLM pass (`PromptTextCleaner`), not two — a second round trip would double CPU inference latency.
 
 ## Build/run notes (environment quirks)
 
 - This machine has only the .NET 10 runtime; test project uses `RollForward=LatestMajor` to run net8.0 tests on it.
 - `Flight.App` defaults to x64/`win-x64` when built via the solution (WinAppSDK self-contained rejects AnyCPU).
 - Build: `dotnet build Flight.slnx` · Test: `dotnet test Flight.slnx`
+- On non-Windows dev boxes `Flight.App` can't build (WinUI). Build/test Core only: `dotnet build src/Flight.Core/Flight.Core.csproj` · `dotnet test tests/Flight.Tests/Flight.Tests.csproj`

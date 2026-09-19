@@ -1,4 +1,5 @@
 using Flight.Core.Dictation;
+using Flight.Core.Entitlement;
 using Flight.Core.Models;
 using Microsoft.UI.Dispatching;
 
@@ -35,6 +36,8 @@ public sealed class DictationUiPresenter : IDictationUi
     public void ShowProcessing() => OnUiThread(_window.ShowProcessing);
     public void ShowPreview(string cleanedText) => OnUiThread(() => _window.ShowPreview(cleanedText));
     public void ShowError(string message) => OnUiThread(() => _window.ShowError(message));
+    public void ShowUpgradeRequired(EntitlementDecision decision) =>
+        OnUiThread(() => _window.ShowUpgradeRequired(decision));
     public void ShowModelDownloadProgress(ModelDownloadProgress progress) =>
         OnUiThread(() => _window.ShowModelDownloadProgress(progress));
     public void Hide() => OnUiThread(_window.HideToast);

@@ -1,4 +1,5 @@
 using Flight.Core.Dictation;
+using Flight.Core.Entitlement;
 using Flight.Core.Models;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -17,6 +18,12 @@ public sealed partial class DictationToastWindow : Window
 {
     /// <summary>Set by App after the orchestrator is resolved (the orchestrator itself needs the UI).</summary>
     public DictationOrchestrator? Orchestrator { get; set; }
+
+    /// <summary>Opens the settings window. Supplied by App, which owns the DI container.</summary>
+    public Action? OpenSettings { get; set; }
+
+    /// <summary>Starts the subscribe flow (account, then Stripe checkout). Supplied by App.</summary>
+    public Action? StartUpgrade { get; set; }
 
     public DictationToastWindow()
     {
@@ -81,6 +88,22 @@ public sealed partial class DictationToastWindow : Window
         Activate();
     }
 
+    /// <summary>
+    /// Cloud blocked by entitlement. Deliberately not styled as an error: the
+    /// app still works, just not in cloud mode.
+    /// </summary>
+    public void ShowUpgradeRequired(EntitlementDecision decision)
+    {
+        ResetPanels();
+        StatusText.Text = decision.OffersUpgrade ? "Cloud mode needs a subscription" : "Cloud mode is paused";
+        UpgradeText.Text = decision.Message;
+        UpgradeText.Visibility = Visibility.Visible;
+        UpgradeButton.Visibility = decision.OffersUpgrade ? Visibility.Visible : Visibility.Collapsed;
+        UpgradeButtons.Visibility = Visibility.Visible;
+        AppWindow.Show();
+        Activate();
+    }
+
     public void ShowModelDownloadProgress(ModelDownloadProgress progress)
     {
         StatusText.Text = progress.Percent is { } percent
@@ -106,7 +129,13 @@ public sealed partial class DictationToastWindow : Window
         ErrorText.Visibility = Visibility.Collapsed;
         DownloadBar.Visibility = Visibility.Collapsed;
         PreviewButtons.Visibility = Visibility.Collapsed;
+        UpgradeText.Visibility = Visibility.Collapsed;
+        UpgradeButtons.Visibility = Visibility.Collapsed;
     }
+
+    private void OnSettingsClicked(object sender, RoutedEventArgs e) => OpenSettings?.Invoke();
+
+    private void OnUpgradeClicked(object sender, RoutedEventArgs e) => StartUpgrade?.Invoke();
 
     private async void OnConfirmClicked(object sender, RoutedEventArgs e)
     {

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Flight.App.Views.AccountWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24" RowSpacing="12" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" x:Name="HeadingText" Style="{ThemeResource SubtitleTextBlockStyle}"
+                   Text="Your Flight account" />
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}"
+                   Text="An account is only needed for cloud cleanup. Local dictation stays free and unlimited, with no account, forever." />
+
+        <StackPanel Grid.Row="2" x:Name="CredentialsPanel" Spacing="8">
+            <TextBox x:Name="EmailBox" Header="Email" />
+            <PasswordBox x:Name="PasswordBox" Header="Password" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="SignUpButton" Style="{ThemeResource AccentButtonStyle}"
+                        Click="OnSignUpClicked" Content="Create account" />
+                <Button x:Name="SignInButton" Click="OnSignInClicked" Content="Sign in" />
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" x:Name="SubscriptionPanel" Spacing="8" Visibility="Collapsed">
+            <Button x:Name="CheckoutButton" Style="{ThemeResource AccentButtonStyle}"
+                    Click="OnCheckoutClicked" Content="Subscribe with Stripe" />
+            <Button x:Name="PortalButton" Click="OnPortalClicked" Content="Manage subscription" />
+            <Button x:Name="SignOutButton" Click="OnSignOutClicked" Content="Sign out" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="4" x:Name="StatusText" TextWrapping="Wrap"
+                   Style="{ThemeResource CaptionTextBlockStyle}" />
+    </Grid>
+</Window>

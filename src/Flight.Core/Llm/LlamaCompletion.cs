@@ -7,54 +7,38 @@ using LLama.Sampling;
 namespace Flight.Core.Llm;
 
 /// <summary>
-/// Local LLM cleanup via LLamaSharp (llama.cpp) with a quantized GGUF model.
-/// Fixed instruction: remove fillers, fix punctuation/structure, never change
-/// meaning or add content. Model weights are loaded lazily on first use.
+/// Local text generation via LLamaSharp (llama.cpp) against the quantized GGUF
+/// from the model store. Weights are loaded lazily on first use and shared by
+/// every consumer of <see cref="ILlmCompletion"/> — one model load per process.
 /// </summary>
-public sealed class LlamaTextCleaner : ITextCleaner, IDisposable
+public sealed class LlamaCompletion : ILlmCompletion, IDisposable
 {
-    private const string SystemPrompt =
-        "You clean up raw speech-to-text transcripts. Remove filler words (um, uh, like, you know), " +
-        "false starts, and repetitions. Fix punctuation, capitalization, and sentence structure. " +
-        "Preserve the speaker's meaning, wording, and all factual content exactly. " +
-        "Never add information, never summarize, never answer questions in the transcript. " +
-        "Output only the cleaned text, nothing else.";
-
     private readonly IModelStore _modelStore;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private LLamaWeights? _weights;
     private ModelParams? _modelParams;
 
-    public LlamaTextCleaner(IModelStore modelStore)
+    public LlamaCompletion(IModelStore modelStore)
     {
         _modelStore = modelStore;
     }
 
-    public async Task<string> CleanAsync(string rawTranscript, CancellationToken cancellationToken = default)
+    public async Task<string> CompleteAsync(LlmRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(rawTranscript))
-        {
-            return string.Empty;
-        }
-
-        var (weights, modelParams) = await GetModelAsync(cancellationToken);
+        var (weights, modelParams) = await LoadAsync(cancellationToken);
         var executor = new StatelessExecutor(weights, modelParams);
 
         // Phi-4 chat template
         var prompt =
-            $"<|system|>{SystemPrompt}<|end|>" +
-            $"<|user|>{rawTranscript}<|end|>" +
+            $"<|system|>{request.SystemPrompt}<|end|>" +
+            $"<|user|>{request.UserPrompt}<|end|>" +
             "<|assistant|>";
 
         var inferenceParams = new InferenceParams
         {
-            MaxTokens = 1024,
+            MaxTokens = request.MaxTokens,
             AntiPrompts = ["<|end|>", "<|user|>"],
-            SamplingPipeline = new DefaultSamplingPipeline
-            {
-                // Cleanup is a faithful-transform task; keep sampling near-greedy
-                Temperature = 0.1f,
-            },
+            SamplingPipeline = new DefaultSamplingPipeline { Temperature = request.Temperature },
         };
 
         var output = new StringBuilder();
@@ -66,7 +50,8 @@ public sealed class LlamaTextCleaner : ITextCleaner, IDisposable
         return output.ToString().Replace("<|end|>", string.Empty).Trim();
     }
 
-    private async Task<(LLamaWeights Weights, ModelParams Params)> GetModelAsync(CancellationToken cancellationToken)
+    /// <summary>Loaded weights, shared with the embedding generator to avoid a second model load.</summary>
+    internal async Task<(LLamaWeights Weights, ModelParams Params)> LoadAsync(CancellationToken cancellationToken)
     {
         if (_weights is not null && _modelParams is not null)
         {

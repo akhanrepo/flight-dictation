@@ -39,7 +39,8 @@ public class AppHostTests
             services.AddSingleton<IPushToTalkHotkey, FakeHotkey>();
             services.AddSingleton<IAudioCapturer, FakeAudioCapturer>();
             services.AddSingleton<ISpeechToText, FakeSpeechToText>();
-            services.AddSingleton<ITextCleaner, FakeTextCleaner>();
+            services.AddSingleton(new LocalLlmEngine(new FakeLlmCompletion("local")));
+            services.AddSingleton<Flight.Core.Security.ISecretStore>(new InMemorySecretStore());
             services.AddSingleton<IClipboardWriter, FakeClipboardWriter>();
             services.AddSingleton<IDictationUi, FakeDictationUi>();
         });

@@ -1,17 +1,25 @@
 using Flight.App.Audio;
 using Flight.App.Clipboard;
+using Flight.App.Platform;
+using Flight.App.Security;
 using Flight.App.Views;
 using Flight.App.Win32;
 using Flight.Core;
+using Flight.Core.Accounts;
 using Flight.Core.Audio;
+using Flight.Core.Billing;
+using Flight.Core.Entitlement;
 using Flight.Core.Clipboard;
 using Flight.Core.Dictation;
 using Flight.Core.Hosting;
 using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Models;
+using Flight.Core.Security;
+using Flight.Core.Settings;
 using Flight.Core.Stt;
 using Flight.Core.Tools;
+using Flight.Core.Vocabulary;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Dispatching;
@@ -34,7 +42,15 @@ public partial class App : Application
             services.AddSingleton<IPushToTalkHotkey, LowLevelKeyboardHook>();
             services.AddSingleton<IAudioCapturer, WasapiAudioCapturer>();
             services.AddSingleton<ISpeechToText, WhisperSpeechToText>();
-            services.AddSingleton<ITextCleaner, LlamaTextCleaner>();
+            services.AddSingleton<LlamaCompletion>();
+            services.AddSingleton(sp => new LocalLlmEngine(sp.GetRequiredService<LlamaCompletion>()));
+            services.AddSingleton<ISecretStore, DpapiSecretStore>();
+            services.AddSingleton<IUrlLauncher, BrowserUrlLauncher>();
+            // Real embeddings come from the same loaded GGUF, with the
+            // model-free generator as the fallback path.
+            services.AddSingleton<IEmbeddingGenerator>(sp => new LlamaEmbeddingGenerator(
+                sp.GetRequiredService<LlamaCompletion>(),
+                new HashingEmbeddingGenerator()));
             services.AddSingleton<IClipboardWriter, WindowsClipboardWriter>();
             services.AddSingleton(sp => new HttpModelStore(sp.GetRequiredService<FlightOptions>(), new HttpClient()));
             services.AddSingleton<IModelStore>(sp => sp.GetRequiredService<HttpModelStore>());
@@ -51,6 +67,8 @@ public partial class App : Application
 
         _orchestrator = Host.Services.GetRequiredService<DictationOrchestrator>();
         _window.Orchestrator = _orchestrator;
+        _window.OpenSettings = ShowSettings;
+        _window.StartUpgrade = ShowAccount;
 
         try
         {
@@ -76,6 +94,30 @@ public partial class App : Application
         }
 
         _orchestrator.Start();
+    }
+
+    private SettingsWindow? _settingsWindow;
+
+    private void ShowSettings()
+    {
+        // One settings window; re-activate rather than stacking duplicates.
+        _settingsWindow ??= new SettingsWindow(
+            Host.Services.GetRequiredService<ISettingsStore>(),
+            Host.Services.GetRequiredService<ISecretStore>());
+        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        _settingsWindow.Activate();
+    }
+
+    private AccountWindow? _accountWindow;
+
+    private void ShowAccount()
+    {
+        _accountWindow ??= new AccountWindow(
+            Host.Services.GetRequiredService<IAccountSession>(),
+            Host.Services.GetRequiredService<IBillingPortal>(),
+            Host.Services.GetRequiredService<IEntitlementService>());
+        _accountWindow.Closed += (_, _) => _accountWindow = null;
+        _accountWindow.Activate();
     }
 
     /// <summary>

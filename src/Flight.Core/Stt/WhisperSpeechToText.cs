@@ -1,13 +1,19 @@
 using System.Text;
+using Flight.Core.Languages;
 using Flight.Core.Models;
 using Whisper.net;
 
 namespace Flight.Core.Stt;
 
 /// <summary>
-/// whisper.cpp via Whisper.net, using the quantized English model from the
-/// model store. The factory is loaded lazily on first transcription so app
-/// startup doesn't block on model load.
+/// whisper.cpp via Whisper.net, using the quantized model from the model
+/// store. The factory is loaded lazily on first transcription so app startup
+/// doesn't block on model load.
+///
+/// Note: the default model is <c>ggml-base.en-q5_1.bin</c>, which is
+/// English-only. Feature #3's five non-English source languages need a
+/// multilingual model (drop the <c>.en</c>); <see cref="FlightOptions.SttModel"/>
+/// is where that swap happens.
 /// </summary>
 public sealed class WhisperSpeechToText : ISpeechToText, IDisposable
 {
@@ -20,7 +26,10 @@ public sealed class WhisperSpeechToText : ISpeechToText, IDisposable
         _modelStore = modelStore;
     }
 
-    public async Task<string> TranscribeAsync(float[] samples, CancellationToken cancellationToken = default)
+    public async Task<string> TranscribeAsync(
+        float[] samples,
+        string languageCode = SupportedLanguages.DefaultCode,
+        CancellationToken cancellationToken = default)
     {
         if (samples.Length == 0)
         {
@@ -29,7 +38,7 @@ public sealed class WhisperSpeechToText : ISpeechToText, IDisposable
 
         var factory = await GetFactoryAsync(cancellationToken);
         await using var processor = factory.CreateBuilder()
-            .WithLanguage("en")
+            .WithLanguage(languageCode)
             .Build();
 
         var transcript = new StringBuilder();

@@ -29,7 +29,8 @@ public static class CleanerBenchmark
         for (var i = 0; i < SampleTranscripts.Length; i++)
         {
             var stopwatch = Stopwatch.StartNew();
-            var cleaned = await cleaner.CleanAsync(SampleTranscripts[i], cancellationToken);
+            var cleaned = await cleaner.CleanAsync(
+                new TranscriptCleanupRequest(SampleTranscripts[i]), cancellationToken);
             stopwatch.Stop();
             total += stopwatch.Elapsed;
 

@@ -1,3 +1,4 @@
+using Flight.Core.Entitlement;
 using Flight.Core.Models;
 
 namespace Flight.Core.Dictation;
@@ -18,6 +19,13 @@ public interface IDictationUi
 
     /// <summary>Explicit, user-visible error state — never a silent failure.</summary>
     void ShowError(string message);
+
+    /// <summary>
+    /// Cloud mode was blocked by entitlement. Distinct from
+    /// <see cref="ShowError"/> because the user needs a route forward
+    /// (subscribe, or switch to local), not just a message.
+    /// </summary>
+    void ShowUpgradeRequired(EntitlementDecision decision);
 
     /// <summary>First-run model download/init progress — never a silent hang.</summary>
     void ShowModelDownloadProgress(ModelDownloadProgress progress);

@@ -1,4 +1,5 @@
 using Flight.Core.Dictation;
+using Flight.Core.Entitlement;
 using Flight.Core.Models;
 
 namespace Flight.App.Views;
@@ -17,6 +18,7 @@ public sealed class DeferredDictationUi : IDictationUi
     public void ShowProcessing() => Inner?.ShowProcessing();
     public void ShowPreview(string cleanedText) => Inner?.ShowPreview(cleanedText);
     public void ShowError(string message) => Inner?.ShowError(message);
+    public void ShowUpgradeRequired(EntitlementDecision decision) => Inner?.ShowUpgradeRequired(decision);
     public void ShowModelDownloadProgress(ModelDownloadProgress progress) => Inner?.ShowModelDownloadProgress(progress);
     public void Hide() => Inner?.Hide();
 }
