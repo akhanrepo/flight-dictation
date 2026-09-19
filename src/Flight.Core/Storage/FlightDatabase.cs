@@ -80,6 +80,17 @@ public class FlightDatabase
                     target_language TEXT NOT NULL,
                     llm_mode TEXT NOT NULL DEFAULT 'local'
                 );
+
+                -- This install and its cached entitlement (PRD: Device).
+                -- A single row, row_id pinned to 1; the device id itself is a
+                -- stable guid generated on first run.
+                CREATE TABLE IF NOT EXISTS devices (
+                    row_id INTEGER PRIMARY KEY CHECK (row_id = 1),
+                    id TEXT NOT NULL,
+                    account_id TEXT NULL,
+                    cached_entitlement TEXT NULL,
+                    last_synced_at TEXT NULL
+                );
                 """;
             command.ExecuteNonQuery();
             _initialized = true;

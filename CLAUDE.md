@@ -10,7 +10,7 @@ Windows dictation / second-brain app for consultants. Full product context lives
 - **Audio capture:** NAudio 2.2.1 (3.x requires .NET 9), 16kHz mono
 - **Cloud LLM:** **Decided: OpenAI `gpt-4o-mini` over the OpenAI-compatible `/chat/completions` shape.** Endpoint and model are `FlightOptions` settings, so moving to DeepSeek/Groq/Gemini-compat is config, not code. API key lives in `ISecretStore` (Windows DPAPI in the shell) — never in options or plaintext config.
 - **Storage:** SQLite for the local vocabulary/context store. **sqlite-vec is not used**: it's a native loadable extension needing a per-RID binary, which would put a native download in the test path. Embeddings are float32 BLOBs ranked by cosine similarity inside `SqliteVocabularyRepository` — moving to a `vec0` virtual table later is a change inside that one class.
-- **Backend:** Supabase (accounts/auth/Postgres) + Stripe hosted checkout/portal
+- **Backend:** Supabase (GoTrue auth + two Edge Functions: `entitlement`, `stripe-checkout`/`stripe-portal`) + Stripe hosted checkout/portal. The Stripe secret key lives in the backend and never reaches the client. `FlightOptions.SupabaseUrl`/`SupabaseAnonKey` are set at packaging time.
 - **Packaging:** MSIX or installer with auto-updater; models downloaded on first run
 
 ## MVP scope (build order)
@@ -19,7 +19,7 @@ Windows dictation / second-brain app for consultants. Full product context lives
 2. Automatic vocabulary/context building from confirmed dictations — **built**
 3. Bidirectional translation (up to 5 languages) — **built**
 4. Cloud LLM toggle behind the same inference interface as #1 — **built**
-5. Account + subscription entitlement (Supabase + Stripe) — deliberately last
+5. Account + subscription entitlement (Supabase + Stripe) — **built**
 
 ## Explicit non-goals (do not build, do not design for prematurely)
 
@@ -67,6 +67,8 @@ docs/               PRD and feature briefs
 - Test fakes for every pipeline interface are in `tests/Flight.Tests/Fakes/Fakes.cs`. Reuse them.
 - **Vocabulary (feature #2):** `BackgroundVocabularyLearningQueue` drains a channel off the dictation loop. `ConfirmAsync` writes the clipboard, persists, *then* enqueues — that order is an acceptance criterion, don't reorder it. `PromptTextCleaner` injects the top-K relevant terms into the cleanup system prompt before inference; an empty store yields the unmodified prompt.
 - Extraction and cleanup both run through `ILlmCompletion`, so they follow whichever engine is active with no extra wiring.
+- **Entitlement (feature #5):** decided policy — trial **30 days** from the first cloud dictation; entitlement cache refreshed when older than **24h**; **7-day** offline grace; past that, or with no cache, cloud **fails closed** (local is the free tier and needs no verification, so the usual fail-open instinct is wrong here). Trial start is `MIN(created_at) WHERE llm_mode='cloud'`, so pre-existing cloud history back-dates the trial rather than resetting it on reinstall.
+- `EntitlementGatedLlmCompletion` wraps the **cloud engine only**, inside `CloudLlmEngine`. Two guarantees are structural because of that placement: local dictation never runs an entitlement check, and a block always precedes the API call. Don't move it up to the router.
 - **LLM routing (feature #4):** `LlmModeRouter` is the registered `ILlmCompletion`; the local and cloud engines are wrapped in `LocalLlmEngine`/`CloudLlmEngine` so DI can tell three `ILlmCompletion`s apart. Routing comes from `LlmRequest.Mode` (set from the per-dictation settings snapshot), falling back to the current setting for background work. **There is no cloud→local fallback** — a cloud failure is an explicit error state, by requirement.
 - **Languages (feature #3):** `SupportedLanguages.All` is the single source of truth for the six languages. Source language is user-selected, never auto-detected. `SqliteSettingsStore` caches the `settings` row in memory; the orchestrator snapshots `ISettingsStore.Current` at hotkey-release, so a change lands on the *next* dictation and can't affect one in flight. Cleanup and translation are one LLM pass (`PromptTextCleaner`), not two — a second round trip would double CPU inference latency.
 

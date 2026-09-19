@@ -1,4 +1,7 @@
+using Flight.Core.Accounts;
+using Flight.Core.Billing;
 using Flight.Core.Dictation;
+using Flight.Core.Entitlement;
 using Flight.Core.Llm;
 using Flight.Core.Settings;
 using Flight.Core.Storage;
@@ -42,11 +45,24 @@ public static class AppHost
         // gets the router, so it never learns which engine ran.
         builder.Services.AddSingleton(_ => new HttpClient());
         builder.Services.AddSingleton<CloudLlmCompletion>();
-        builder.Services.AddSingleton(sp => new CloudLlmEngine(sp.GetRequiredService<CloudLlmCompletion>()));
+        // The entitlement gate wraps the cloud engine only, so local-mode
+        // dictation never runs a check and a block always precedes the API call.
+        builder.Services.AddSingleton(sp => new CloudLlmEngine(
+            new EntitlementGatedLlmCompletion(
+                sp.GetRequiredService<CloudLlmCompletion>(),
+                sp.GetRequiredService<IEntitlementService>())));
         builder.Services.AddSingleton<ILlmCompletion, LlmModeRouter>();
 
         // Cleanup runs over whichever engine the router selects.
         builder.Services.AddSingleton<ITextCleaner, PromptTextCleaner>();
+
+        // Accounts, entitlement, and billing (feature #5).
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<IDeviceStore, SqliteDeviceStore>();
+        builder.Services.AddSingleton<ISupabaseClient, HttpSupabaseClient>();
+        builder.Services.AddSingleton<IAccountSession, AccountSession>();
+        builder.Services.AddSingleton<IEntitlementService, EntitlementService>();
+        builder.Services.AddSingleton<IBillingPortal, StripeBillingPortal>();
 
         // Platform-bound services (hotkey, audio, STT/LLM engines, clipboard, UI)
         // are registered by the caller: the WinUI shell provides real

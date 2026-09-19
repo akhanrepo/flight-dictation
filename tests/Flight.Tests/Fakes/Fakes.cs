@@ -2,6 +2,9 @@ using Flight.Core.Audio;
 using Flight.Core.Clipboard;
 using Flight.Core.Dictation;
 using Flight.Core.Input;
+using Flight.Core.Accounts;
+using Flight.Core.Billing;
+using Flight.Core.Entitlement;
 using Flight.Core.Llm;
 using Flight.Core.Security;
 using Flight.Core.Languages;
@@ -119,6 +122,14 @@ public sealed class FakeDictationUi : IDictationUi
         Events.Add("error");
     }
 
+    public EntitlementDecision? LastUpgradePrompt { get; private set; }
+
+    public void ShowUpgradeRequired(EntitlementDecision decision)
+    {
+        LastUpgradePrompt = decision;
+        Events.Add("upgrade");
+    }
+
     public List<Flight.Core.Models.ModelDownloadProgress> DownloadProgressReports { get; } = [];
 
     public void ShowModelDownloadProgress(Flight.Core.Models.ModelDownloadProgress progress)
@@ -143,6 +154,13 @@ public sealed class InMemorySessionRepository : IDictationSessionRepository
 
     public Task<IReadOnlyList<DictationSession>> GetAllAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<DictationSession>>(Sessions);
+
+    public Task<DateTimeOffset?> GetEarliestCloudDictationAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<DateTimeOffset?>(Sessions
+            .Where(s => s.LlmMode == "cloud")
+            .Select(s => (DateTimeOffset?)s.CreatedAt)
+            .DefaultIfEmpty(null)
+            .Min());
 }
 
 public sealed class FakeLlmCompletion : ILlmCompletion
@@ -304,5 +322,95 @@ public sealed class StubHttpMessageHandler : HttpMessageHandler
         }
 
         return await _handler(request, cancellationToken);
+    }
+}
+
+public sealed class InMemoryDeviceStore : IDeviceStore
+{
+    public InMemoryDeviceStore(Device? initial = null) =>
+        Current = initial ?? new Device { Id = "test-device" };
+
+    public Device Current { get; private set; }
+    public int UpdateCount { get; private set; }
+
+    public Task<Device> UpdateAsync(Device device, CancellationToken cancellationToken = default)
+    {
+        Current = device;
+        UpdateCount++;
+        return Task.FromResult(device);
+    }
+}
+
+public sealed class FakeAccountSession : IAccountSession
+{
+    public FakeAccountSession(Account? initial = null) => Current = initial;
+
+    public Account? Current { get; private set; }
+
+    public Task<Account> SignUpAsync(string email, string password, CancellationToken cancellationToken = default) =>
+        SignInAsync(email, password, cancellationToken);
+
+    public Task<Account> SignInAsync(string email, string password, CancellationToken cancellationToken = default)
+    {
+        Current = new Account { Id = "account-1", Email = email, AccessToken = "token" };
+        return Task.FromResult(Current);
+    }
+
+    public Task SignOutAsync(CancellationToken cancellationToken = default)
+    {
+        Current = null;
+        return Task.CompletedTask;
+    }
+}
+
+public sealed class FakeSupabaseClient : ISupabaseClient
+{
+    public string EntitlementToReturn { get; set; } = RemoteEntitlements.None;
+    public Exception? ExceptionToThrow { get; set; }
+    public int EntitlementCallCount { get; private set; }
+    public string CheckoutUrl { get; set; } = "https://checkout.stripe.com/test-session";
+    public string PortalUrl { get; set; } = "https://billing.stripe.com/test-portal";
+
+    public Task<Account> SignUpAsync(string email, string password, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new Account { Id = "account-1", Email = email, AccessToken = "token" });
+
+    public Task<Account> SignInAsync(string email, string password, CancellationToken cancellationToken = default) =>
+        SignUpAsync(email, password, cancellationToken);
+
+    public Task<RemoteEntitlement> GetEntitlementAsync(Account account, CancellationToken cancellationToken = default)
+    {
+        EntitlementCallCount++;
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
+        return Task.FromResult(new RemoteEntitlement(EntitlementToReturn));
+    }
+
+    public Task<string> CreateCheckoutUrlAsync(Account account, CancellationToken cancellationToken = default) =>
+        ExceptionToThrow is not null ? throw ExceptionToThrow : Task.FromResult(CheckoutUrl);
+
+    public Task<string> CreatePortalUrlAsync(Account account, CancellationToken cancellationToken = default) =>
+        ExceptionToThrow is not null ? throw ExceptionToThrow : Task.FromResult(PortalUrl);
+}
+
+public sealed class FakeUrlLauncher : IUrlLauncher
+{
+    public List<string> Opened { get; } = [];
+
+    public void Open(string url) => Opened.Add(url);
+}
+
+public sealed class FakeEntitlementService : IEntitlementService
+{
+    public EntitlementDecision DecisionToReturn { get; set; } =
+        new(true, EntitlementStatus.TrialActive);
+
+    public int EvaluationCount { get; private set; }
+
+    public Task<EntitlementDecision> EvaluateAsync(CancellationToken cancellationToken = default)
+    {
+        EvaluationCount++;
+        return Task.FromResult(DecisionToReturn);
     }
 }

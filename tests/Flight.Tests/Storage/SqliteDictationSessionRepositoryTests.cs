@@ -62,4 +62,44 @@ public sealed class SqliteDictationSessionRepositoryTests : IDisposable
     {
         Assert.Empty(await _repository.GetAllAsync());
     }
+
+    // Feature #5 criterion: the trial-start anchor is the earliest cloud row,
+    // computed from history that may predate that feature shipping
+    [Fact]
+    public async Task EarliestCloudDictation_Is_The_Oldest_Cloud_Row()
+    {
+        var oldest = DateTimeOffset.UtcNow.AddDays(-90);
+        await AddAsync("local", oldest.AddDays(-30));
+        await AddAsync("cloud", DateTimeOffset.UtcNow.AddDays(-2));
+        await AddAsync("cloud", oldest);
+        await AddAsync("cloud", DateTimeOffset.UtcNow.AddDays(-40));
+
+        var earliest = await _repository.GetEarliestCloudDictationAsync();
+
+        Assert.Equal(oldest.ToUnixTimeSeconds(), earliest!.Value.ToUnixTimeSeconds());
+    }
+
+    // Local-only history must not start a cloud trial clock
+    [Fact]
+    public async Task EarliestCloudDictation_Ignores_LocalMode_Rows()
+    {
+        await AddAsync("local", DateTimeOffset.UtcNow.AddDays(-100));
+
+        Assert.Null(await _repository.GetEarliestCloudDictationAsync());
+    }
+
+    [Fact]
+    public async Task EarliestCloudDictation_On_Empty_Database_Is_Null()
+    {
+        Assert.Null(await _repository.GetEarliestCloudDictationAsync());
+    }
+
+    private Task AddAsync(string llmMode, DateTimeOffset createdAt) =>
+        _repository.AddAsync(new DictationSession
+        {
+            RawTranscript = "raw",
+            CleanedOutput = "clean",
+            LlmMode = llmMode,
+            CreatedAt = createdAt,
+        });
 }

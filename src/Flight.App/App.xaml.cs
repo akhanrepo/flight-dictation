@@ -1,10 +1,14 @@
 using Flight.App.Audio;
 using Flight.App.Clipboard;
+using Flight.App.Platform;
 using Flight.App.Security;
 using Flight.App.Views;
 using Flight.App.Win32;
 using Flight.Core;
+using Flight.Core.Accounts;
 using Flight.Core.Audio;
+using Flight.Core.Billing;
+using Flight.Core.Entitlement;
 using Flight.Core.Clipboard;
 using Flight.Core.Dictation;
 using Flight.Core.Hosting;
@@ -41,6 +45,7 @@ public partial class App : Application
             services.AddSingleton<LlamaCompletion>();
             services.AddSingleton(sp => new LocalLlmEngine(sp.GetRequiredService<LlamaCompletion>()));
             services.AddSingleton<ISecretStore, DpapiSecretStore>();
+            services.AddSingleton<IUrlLauncher, BrowserUrlLauncher>();
             // Real embeddings come from the same loaded GGUF, with the
             // model-free generator as the fallback path.
             services.AddSingleton<IEmbeddingGenerator>(sp => new LlamaEmbeddingGenerator(
@@ -63,6 +68,7 @@ public partial class App : Application
         _orchestrator = Host.Services.GetRequiredService<DictationOrchestrator>();
         _window.Orchestrator = _orchestrator;
         _window.OpenSettings = ShowSettings;
+        _window.StartUpgrade = ShowAccount;
 
         try
         {
@@ -100,6 +106,18 @@ public partial class App : Application
             Host.Services.GetRequiredService<ISecretStore>());
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Activate();
+    }
+
+    private AccountWindow? _accountWindow;
+
+    private void ShowAccount()
+    {
+        _accountWindow ??= new AccountWindow(
+            Host.Services.GetRequiredService<IAccountSession>(),
+            Host.Services.GetRequiredService<IBillingPortal>(),
+            Host.Services.GetRequiredService<IEntitlementService>());
+        _accountWindow.Closed += (_, _) => _accountWindow = null;
+        _accountWindow.Activate();
     }
 
     /// <summary>

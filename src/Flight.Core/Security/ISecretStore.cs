@@ -18,4 +18,6 @@ public interface ISecretStore
 public static class SecretNames
 {
     public const string CloudLlmApiKey = "cloud-llm-api-key";
+    public const string AccountAccessToken = "supabase-access-token";
+    public const string AccountEmail = "supabase-account-email";
 }
