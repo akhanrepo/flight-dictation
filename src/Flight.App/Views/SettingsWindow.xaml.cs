@@ -141,7 +141,7 @@ public sealed partial class SettingsWindow : Window
             ? $"Speak {SupportedLanguages.EnglishNameOf(settings.SourceLanguage)}, " +
               $"get {SupportedLanguages.EnglishNameOf(settings.TargetLanguage)} text. " +
               "Takes effect on your next dictation."
-            : $"Cleanup only, no translation. Takes effect on your next dictation.";
+            : "Cleanup only, no translation. Takes effect on your next dictation.";
     }
 
     private void OnCloseClicked(object sender, RoutedEventArgs e) => Close();

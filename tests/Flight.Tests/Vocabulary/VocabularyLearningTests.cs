@@ -173,6 +173,37 @@ public class VocabularyLearningTests
         Assert.Equal(2, _vocabulary.Entries.Count);
     }
 
+    // Criterion: no UI exists for manually adding a vocabulary entry — every
+    // entry originates from a confirmed dictation. Enforced structurally: the
+    // only way into the store is the learning queue, which takes a
+    // DictationSession, and the UI surface has no vocabulary verb at all.
+    [Fact]
+    public void Vocabulary_Can_Only_Be_Reached_Through_A_Confirmed_Dictation()
+    {
+        var enqueue = typeof(IVocabularyLearningQueue).GetMethod(nameof(IVocabularyLearningQueue.Enqueue))!;
+        Assert.Equal(
+            typeof(Flight.Core.Storage.DictationSession),
+            Assert.Single(enqueue.GetParameters()).ParameterType);
+
+        // The user-facing surface offers no way to add, edit, or delete a term.
+        Assert.DoesNotContain(
+            typeof(Flight.Core.Dictation.IDictationUi).GetMethods(),
+            method => method.Name.Contains("Vocabulary", StringComparison.OrdinalIgnoreCase)
+                || method.Name.Contains("Term", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // Every stored entry traces back to the dictation it came from
+    [Fact]
+    public async Task EveryStoredEntry_Traces_Back_To_A_Source_Dictation()
+    {
+        _extractor.TermsToReturn = ["Contoso", "Fabrikam"];
+
+        await CreateLearner().LearnAsync(Session("Contoso and Fabrikam."));
+
+        Assert.Equal(2, _vocabulary.Entries.Count);
+        Assert.All(_vocabulary.Entries, entry => Assert.Equal(7, entry.SourceSessionId));
+    }
+
     private sealed class OrderRecordingClipboard : Flight.Core.Clipboard.IClipboardWriter
     {
         private readonly FakeClipboardWriter _inner;
