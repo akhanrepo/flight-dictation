@@ -77,4 +77,12 @@ docs/               PRD and feature briefs
 - This machine has only the .NET 10 runtime; test project uses `RollForward=LatestMajor` to run net8.0 tests on it.
 - `Flight.App` defaults to x64/`win-x64` when built via the solution (WinAppSDK self-contained rejects AnyCPU).
 - Build: `dotnet build Flight.slnx` · Test: `dotnet test Flight.slnx`
-- On non-Windows dev boxes `Flight.App` can't build (WinUI). Build/test Core only: `dotnet build src/Flight.Core/Flight.Core.csproj` · `dotnet test tests/Flight.Tests/Flight.Tests.csproj`
+- On non-Windows dev boxes (including remote/CI Linux containers) `Flight.App` cannot be fully built. Build/test Core only: `dotnet build src/Flight.Core/Flight.Core.csproj` · `dotnet test tests/Flight.Tests/Flight.Tests.csproj`
+
+### How far `Flight.App` gets on Linux, and where it stops
+
+Worth knowing so nobody re-walks these dead ends. With `-p:EnableWindowsTargeting=true` the restore and the Windows targeting packs both work; the build then dies in **`XamlCompiler.exe`**, a Windows-only PE binary. Running it under Mono (via `binfmt_misc`) gets it executing but it exits 1 silently — the XAML compiler resolves the WinUI type system out of `.winmd` Windows Metadata, which Mono has no support for. Wine wouldn't clear that either. The next blocker behind it is the MrtCore PRI resource indexer, same Windows-only problem.
+
+**What can still be verified on Linux:** the hand-written code-behind type-checks if you skip the markup compiler and reference the WinUI assemblies directly. Build a scratch project (outside the repo) that targets `net8.0-windows10.0.19041.0` with `EnableWindowsTargeting=true`, does *not* set `UseWinUI` (that is what pulls in the markup compiler and PRI targets), `<Reference>`s the DLLs in `microsoft.windowsappsdk/<ver>/lib/net6.0-windows10.0.18362.0/` directly, `<Compile Include>`s `src/Flight.App/**/*.cs`, and supplies the markup compiler's output as generated stubs: one partial class per `.xaml` holding a field per `x:Name` (typed from the XAML element) plus an empty `InitializeComponent()`. Generating those fields *from the XAML* is what makes the check meaningful — a code-behind reference to a name the XAML doesn't define fails the compile exactly as it would on Windows.
+
+**This does not substitute for a Windows build.** It verifies the C# and the XAML↔code-behind contract (names, handler signatures). It does not verify the XAML markup itself: bad property names, invalid `ThemeResource` keys, and malformed bindings all survive it.
