@@ -39,7 +39,7 @@ public class AppHostTests
             services.AddSingleton<IPushToTalkHotkey, FakeHotkey>();
             services.AddSingleton<IAudioCapturer, FakeAudioCapturer>();
             services.AddSingleton<ISpeechToText, FakeSpeechToText>();
-            services.AddSingleton<ITextCleaner, FakeTextCleaner>();
+            services.AddSingleton<ILlmCompletion, FakeLlmCompletion>();
             services.AddSingleton<IClipboardWriter, FakeClipboardWriter>();
             services.AddSingleton<IDictationUi, FakeDictationUi>();
         });

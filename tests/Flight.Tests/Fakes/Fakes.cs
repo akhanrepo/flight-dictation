@@ -5,6 +5,7 @@ using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Storage;
 using Flight.Core.Stt;
+using Flight.Core.Vocabulary;
 
 namespace Flight.Tests.Fakes;
 
@@ -133,4 +134,106 @@ public sealed class InMemorySessionRepository : IDictationSessionRepository
 
     public Task<IReadOnlyList<DictationSession>> GetAllAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<DictationSession>>(Sessions);
+}
+
+public sealed class FakeLlmCompletion : ILlmCompletion
+{
+    public List<LlmRequest> Requests { get; } = [];
+    public LlmRequest? LastRequest => Requests.Count == 0 ? null : Requests[^1];
+    public string ResponseToReturn { get; set; } = "Hello, world.";
+    public Exception? ExceptionToThrow { get; set; }
+
+    public Task<string> CompleteAsync(LlmRequest request, CancellationToken cancellationToken = default)
+    {
+        Requests.Add(request);
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
+        return Task.FromResult(ResponseToReturn);
+    }
+}
+
+public sealed class FakeTermExtractor : ITermExtractor
+{
+    public List<string> ReceivedTexts { get; } = [];
+    public IReadOnlyList<string> TermsToReturn { get; set; } = ["Contoso"];
+    public Exception? ExceptionToThrow { get; set; }
+
+    public Task<IReadOnlyList<string>> ExtractAsync(string cleanedOutput, CancellationToken cancellationToken = default)
+    {
+        ReceivedTexts.Add(cleanedOutput);
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
+        return Task.FromResult(TermsToReturn);
+    }
+}
+
+public sealed class InMemoryVocabularyRepository : IVocabularyRepository
+{
+    private readonly List<VocabularyEntry> _entries = [];
+
+    public IReadOnlyList<VocabularyEntry> Entries => _entries;
+
+    public Task<VocabularyEntry> UpsertAsync(VocabularyEntry entry, CancellationToken cancellationToken = default)
+    {
+        var index = _entries.FindIndex(e => string.Equals(e.Term, entry.Term, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
+        {
+            var updated = _entries[index] with
+            {
+                Frequency = _entries[index].Frequency + 1,
+                LastUsedAt = entry.LastUsedAt,
+                Embedding = entry.Embedding,
+            };
+            _entries[index] = updated;
+            return Task.FromResult(updated);
+        }
+
+        var stored = entry with { Id = _entries.Count + 1 };
+        _entries.Add(stored);
+        return Task.FromResult(stored);
+    }
+
+    public Task<IReadOnlyList<VocabularyMatch>> FindRelevantAsync(
+        float[] queryEmbedding, int topK, double minimumSimilarity, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<VocabularyMatch>>(_entries
+            .Select(e => new VocabularyMatch(e, VectorMath.CosineSimilarity(queryEmbedding, e.Embedding)))
+            .Where(m => m.Similarity >= minimumSimilarity)
+            .OrderByDescending(m => m.Similarity)
+            .Take(topK)
+            .ToList());
+
+    public Task<IReadOnlyList<VocabularyEntry>> GetAllAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<VocabularyEntry>>(_entries);
+}
+
+public sealed class FakeVocabularyContextProvider : IVocabularyContextProvider
+{
+    public List<string> ReceivedTranscripts { get; } = [];
+    public IReadOnlyList<string> TermsToReturn { get; set; } = [];
+
+    public Task<IReadOnlyList<string>> GetRelevantTermsAsync(string rawTranscript, CancellationToken cancellationToken = default)
+    {
+        ReceivedTranscripts.Add(rawTranscript);
+        return Task.FromResult(TermsToReturn);
+    }
+}
+
+/// <summary>
+/// Records what was handed off for vocabulary learning, and when relative to
+/// the clipboard write, so ordering criteria are directly assertable.
+/// </summary>
+public sealed class FakeVocabularyLearningQueue : IVocabularyLearningQueue
+{
+    public List<DictationSession> Enqueued { get; } = [];
+    public Action? OnEnqueue { get; set; }
+
+    public void Enqueue(DictationSession session)
+    {
+        Enqueued.Add(session);
+        OnEnqueue?.Invoke();
+    }
 }

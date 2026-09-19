@@ -57,6 +57,21 @@ public class FlightDatabase
                     llm_mode TEXT NOT NULL,
                     created_at TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS vocabulary_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    term TEXT NOT NULL,
+                    embedding BLOB NOT NULL,
+                    frequency INTEGER NOT NULL,
+                    last_used_at TEXT NOT NULL,
+                    source_session_id INTEGER NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+
+                -- Exact-string dedup (feature #2 scope): the same term never
+                -- gets a second row, it increments the first one's frequency.
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_vocabulary_entries_term
+                    ON vocabulary_entries (term COLLATE NOCASE);
                 """;
             command.ExecuteNonQuery();
             _initialized = true;

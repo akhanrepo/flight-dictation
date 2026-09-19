@@ -4,6 +4,7 @@ using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Storage;
 using Flight.Core.Stt;
+using Flight.Core.Vocabulary;
 using Microsoft.Extensions.Logging;
 
 namespace Flight.Core.Dictation;
@@ -23,6 +24,7 @@ public class DictationOrchestrator : IDisposable
     private readonly IClipboardWriter _clipboard;
     private readonly IDictationSessionRepository _sessions;
     private readonly IDictationUi _ui;
+    private readonly IVocabularyLearningQueue _vocabularyLearning;
     private readonly FlightOptions _options;
     private readonly ILogger<DictationOrchestrator> _logger;
 
@@ -42,6 +44,7 @@ public class DictationOrchestrator : IDisposable
         IClipboardWriter clipboard,
         IDictationSessionRepository sessions,
         IDictationUi ui,
+        IVocabularyLearningQueue vocabularyLearning,
         FlightOptions options,
         ILogger<DictationOrchestrator> logger)
     {
@@ -52,6 +55,7 @@ public class DictationOrchestrator : IDisposable
         _clipboard = clipboard;
         _sessions = sessions;
         _ui = ui;
+        _vocabularyLearning = vocabularyLearning;
         _options = options;
         _logger = logger;
     }
@@ -113,7 +117,11 @@ public class DictationOrchestrator : IDisposable
         }
     }
 
-    /// <summary>User confirmed the preview: copy to clipboard, then persist the session.</summary>
+    /// <summary>
+    /// User confirmed the preview: copy to clipboard, persist the session, then
+    /// hand it to vocabulary learning. That order is deliberate — the clipboard
+    /// write is never behind extraction work.
+    /// </summary>
     public async Task ConfirmAsync()
     {
         if (State != DictationState.Preview || _pendingCleanedText is null || _pendingRawTranscript is null)
@@ -122,12 +130,15 @@ public class DictationOrchestrator : IDisposable
         }
 
         _clipboard.SetText(_pendingCleanedText);
-        await _sessions.AddAsync(new DictationSession
+        var stored = await _sessions.AddAsync(new DictationSession
         {
             RawTranscript = _pendingRawTranscript,
             CleanedOutput = _pendingCleanedText,
             LlmMode = "local",
         });
+
+        // Fire-and-forget by contract: Enqueue returns immediately.
+        _vocabularyLearning.Enqueue(stored);
 
         Reset();
     }

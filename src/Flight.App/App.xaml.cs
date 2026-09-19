@@ -12,6 +12,7 @@ using Flight.Core.Llm;
 using Flight.Core.Models;
 using Flight.Core.Stt;
 using Flight.Core.Tools;
+using Flight.Core.Vocabulary;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.UI.Dispatching;
@@ -34,7 +35,13 @@ public partial class App : Application
             services.AddSingleton<IPushToTalkHotkey, LowLevelKeyboardHook>();
             services.AddSingleton<IAudioCapturer, WasapiAudioCapturer>();
             services.AddSingleton<ISpeechToText, WhisperSpeechToText>();
-            services.AddSingleton<ITextCleaner, LlamaTextCleaner>();
+            services.AddSingleton<LlamaCompletion>();
+            services.AddSingleton<ILlmCompletion>(sp => sp.GetRequiredService<LlamaCompletion>());
+            // Real embeddings come from the same loaded GGUF, with the
+            // model-free generator as the fallback path.
+            services.AddSingleton<IEmbeddingGenerator>(sp => new LlamaEmbeddingGenerator(
+                sp.GetRequiredService<LlamaCompletion>(),
+                new HashingEmbeddingGenerator()));
             services.AddSingleton<IClipboardWriter, WindowsClipboardWriter>();
             services.AddSingleton(sp => new HttpModelStore(sp.GetRequiredService<FlightOptions>(), new HttpClient()));
             services.AddSingleton<IModelStore>(sp => sp.GetRequiredService<HttpModelStore>());

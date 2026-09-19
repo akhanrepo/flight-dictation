@@ -6,10 +6,10 @@ Windows dictation / second-brain app for consultants. Full product context lives
 
 - **App shell/UI:** C# + WinUI 3 (Windows App SDK), .NET 8
 - **Local STT:** Whisper.net 1.9.x (whisper.cpp bindings), model `ggml-base.en-q5_1.bin`
-- **Local LLM:** **Decided: LLamaSharp 0.27.x (llama.cpp), CPU backend**, model Phi-4-mini-instruct Q4_K_M GGUF. Chosen for CPU-only mid-tier hardware. Kept behind `ITextCleaner` so the engine can be swapped. Run `Flight.App --benchmark` to measure real latency.
+- **Local LLM:** **Decided: LLamaSharp 0.27.x (llama.cpp), CPU backend**, model Phi-4-mini-instruct Q4_K_M GGUF. Chosen for CPU-only mid-tier hardware. Engines sit behind `ILlmCompletion`; `ITextCleaner` is a consumer of it, not an engine. Run `Flight.App --benchmark` to measure real latency.
 - **Audio capture:** NAudio 2.2.1 (3.x requires .NET 9), 16kHz mono
 - **Cloud LLM:** optional toggle, budget-tier model, provider TBD; same interface as local inference
-- **Storage:** SQLite + sqlite-vec for the local vocabulary/context store
+- **Storage:** SQLite for the local vocabulary/context store. **sqlite-vec is not used**: it's a native loadable extension needing a per-RID binary, which would put a native download in the test path. Embeddings are float32 BLOBs ranked by cosine similarity inside `SqliteVocabularyRepository` — moving to a `vec0` virtual table later is a change inside that one class.
 - **Backend:** Supabase (accounts/auth/Postgres) + Stripe hosted checkout/portal
 - **Packaging:** MSIX or installer with auto-updater; models downloaded on first run
 
@@ -65,9 +65,12 @@ docs/               PRD and feature briefs
 - Push-to-talk key: **Right Alt** (`VK_RMENU`), fixed. There's no remapping UI yet.
 - Data: `%LOCALAPPDATA%\Flight\flight.db` (SQLite `dictation_sessions`), models in `%LOCALAPPDATA%\Flight\models`, downloaded on first run.
 - Test fakes for every pipeline interface are in `tests/Flight.Tests/Fakes/Fakes.cs`. Reuse them.
+- **Vocabulary (feature #2):** `BackgroundVocabularyLearningQueue` drains a channel off the dictation loop. `ConfirmAsync` writes the clipboard, persists, *then* enqueues — that order is an acceptance criterion, don't reorder it. `PromptTextCleaner` injects the top-K relevant terms into the cleanup system prompt before inference; an empty store yields the unmodified prompt.
+- Extraction and cleanup both run through `ILlmCompletion`, so they follow whichever engine is active with no extra wiring.
 
 ## Build/run notes (environment quirks)
 
 - This machine has only the .NET 10 runtime; test project uses `RollForward=LatestMajor` to run net8.0 tests on it.
 - `Flight.App` defaults to x64/`win-x64` when built via the solution (WinAppSDK self-contained rejects AnyCPU).
 - Build: `dotnet build Flight.slnx` · Test: `dotnet test Flight.slnx`
+- On non-Windows dev boxes `Flight.App` can't build (WinUI). Build/test Core only: `dotnet build src/Flight.Core/Flight.Core.csproj` · `dotnet test tests/Flight.Tests/Flight.Tests.csproj`

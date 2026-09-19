@@ -21,6 +21,20 @@ public class FlightOptions
     /// <summary>Hard ceiling on STT + LLM processing before the pipeline reports an error.</summary>
     public TimeSpan ProcessingTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// How many learned terms are injected into the cleanup prompt. Kept small
+    /// deliberately: every term is prompt tokens, and prompt tokens are local
+    /// inference latency on CPU-only hardware.
+    /// </summary>
+    public int VocabularyContextTermCount { get; set; } = 8;
+
+    /// <summary>
+    /// Cosine-similarity floor for injecting a term. Conservative on purpose —
+    /// a wrong term in the prompt invites the model to insert words the
+    /// speaker never said.
+    /// </summary>
+    public double VocabularyContextMinimumSimilarity { get; set; } = 0.25;
+
     public ModelSpec SttModel { get; set; } = new(
         "ggml-base.en-q5_1.bin",
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-q5_1.bin");

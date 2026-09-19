@@ -1,5 +1,7 @@
 using Flight.Core.Dictation;
+using Flight.Core.Llm;
 using Flight.Core.Storage;
+using Flight.Core.Vocabulary;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -20,6 +22,21 @@ public static class AppHost
         builder.Services.AddSingleton<FlightDatabase>();
         builder.Services.AddSingleton<IDictationSessionRepository, SqliteDictationSessionRepository>();
         builder.Services.AddSingleton<DictationOrchestrator>();
+
+        // Vocabulary (feature #2). The embedding generator is platform-neutral
+        // and model-free by default, so this pipeline works before the GGUF has
+        // downloaded; the shell overrides it with the llama.cpp embedder.
+        builder.Services.AddSingleton<IVocabularyRepository, SqliteVocabularyRepository>();
+        builder.Services.AddSingleton<IEmbeddingGenerator>(_ => new HashingEmbeddingGenerator());
+        builder.Services.AddSingleton<ITermExtractor, LlmTermExtractor>();
+        builder.Services.AddSingleton<IVocabularyContextProvider, VocabularyContextProvider>();
+        builder.Services.AddSingleton<VocabularyLearner>();
+        builder.Services.AddSingleton<BackgroundVocabularyLearningQueue>();
+        builder.Services.AddSingleton<IVocabularyLearningQueue>(
+            sp => sp.GetRequiredService<BackgroundVocabularyLearningQueue>());
+
+        // Cleanup runs over whichever ILlmCompletion the caller registers.
+        builder.Services.AddSingleton<ITextCleaner, PromptTextCleaner>();
 
         // Platform-bound services (hotkey, audio, STT/LLM engines, clipboard, UI)
         // are registered by the caller: the WinUI shell provides real
