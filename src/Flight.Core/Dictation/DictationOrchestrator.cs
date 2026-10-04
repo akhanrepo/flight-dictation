@@ -35,7 +35,53 @@ public class DictationOrchestrator : IDisposable
     private string? _pendingCleanedText;
     private FlightSettings? _pendingSettings;
 
-    public DictationState State { get; private set; } = DictationState.Idle;
+    private DictationState _state = DictationState.Idle;
+
+    public DictationState State
+    {
+        get => _state;
+        private set
+        {
+            if (_state == value)
+            {
+                return;
+            }
+
+            _state = value;
+            StateChanged?.Invoke(value);
+        }
+    }
+
+    /// <summary>
+    /// Raised on every state transition, on whichever thread caused it (the
+    /// hotkey hook or the processing task). Subscribers marshal as needed.
+    /// </summary>
+    public event Action<DictationState>? StateChanged;
+
+    /// <summary>
+    /// While paused the hotkey is ignored: nothing is captured and no toast
+    /// appears. In memory only, so every launch starts active.
+    /// </summary>
+    public bool IsPaused { get; private set; }
+
+    /// <summary>Raised when <see cref="IsPaused"/> changes.</summary>
+    public event Action<bool>? PausedChanged;
+
+    /// <summary>Ignore the hotkey from now on. A dictation already under way finishes normally.</summary>
+    public void Pause() => SetPaused(true);
+
+    public void Resume() => SetPaused(false);
+
+    private void SetPaused(bool paused)
+    {
+        if (IsPaused == paused)
+        {
+            return;
+        }
+
+        IsPaused = paused;
+        PausedChanged?.Invoke(paused);
+    }
 
     /// <summary>The in-flight STT/LLM pipeline task, if any. Awaitable by tests and shutdown.</summary>
     public Task? ProcessingTask { get; private set; }
@@ -75,7 +121,7 @@ public class DictationOrchestrator : IDisposable
 
     private void OnHotkeyPressed()
     {
-        if (State != DictationState.Idle && State != DictationState.Error)
+        if (IsPaused || (State != DictationState.Idle && State != DictationState.Error))
         {
             return;
         }

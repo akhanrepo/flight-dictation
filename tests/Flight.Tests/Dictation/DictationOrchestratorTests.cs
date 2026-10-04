@@ -286,4 +286,75 @@ public class DictationOrchestratorTests
         await orchestrator.ProcessingTask!;
         Assert.Equal(DictationState.Preview, orchestrator.State);
     }
+
+    // Feature #6 criterion: while paused the hotkey does nothing — no capture, no toast
+    [Fact]
+    public void Paused_HotkeyDoesNotCaptureOrShowTheToast()
+    {
+        var orchestrator = CreateStartedOrchestrator();
+        orchestrator.Pause();
+
+        _hotkey.Press();
+        _hotkey.Release();
+
+        Assert.Equal(DictationState.Idle, orchestrator.State);
+        Assert.Equal(0, _capturer.StartCount);
+        Assert.Empty(_ui.Events);
+    }
+
+    // Feature #6 criterion: pausing mid-dictation lets it finish normally
+    [Fact]
+    public async Task Pause_DuringCapture_LetsTheDictationFinish()
+    {
+        var orchestrator = CreateStartedOrchestrator();
+        _hotkey.Press();
+
+        orchestrator.Pause();
+        _hotkey.Release();
+        await orchestrator.ProcessingTask!;
+
+        Assert.Equal(DictationState.Preview, orchestrator.State);
+    }
+
+    // Feature #6 criterion: pause isn't remembered — a new orchestrator (a
+    // new launch) starts active
+    [Fact]
+    public void Pause_IsNotPersistedAcrossLaunches()
+    {
+        CreateStartedOrchestrator().Pause();
+
+        var nextLaunch = CreateStartedOrchestrator();
+
+        Assert.False(nextLaunch.IsPaused);
+    }
+
+    [Fact]
+    public void Resume_RestoresTheHotkey()
+    {
+        var orchestrator = CreateStartedOrchestrator();
+        orchestrator.Pause();
+        orchestrator.Resume();
+
+        _hotkey.Press();
+
+        Assert.Equal(DictationState.Capturing, orchestrator.State);
+    }
+
+    // The tray follows the dictation loop through this event
+    [Fact]
+    public async Task StateChanged_ReportsEachTransition()
+    {
+        var orchestrator = CreateStartedOrchestrator();
+        var seen = new List<DictationState>();
+        orchestrator.StateChanged += seen.Add;
+
+        _hotkey.Press();
+        _hotkey.Release();
+        await orchestrator.ProcessingTask!;
+        orchestrator.Reject();
+
+        Assert.Equal(
+            [DictationState.Capturing, DictationState.Processing, DictationState.Preview, DictationState.Idle],
+            seen);
+    }
 }
