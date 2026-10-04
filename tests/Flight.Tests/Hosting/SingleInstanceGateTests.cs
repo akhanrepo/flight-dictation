@@ -23,12 +23,16 @@ public class SingleInstanceGateTests
         Assert.True(first.TryAcquire());
 
         // A mutex is re-entrant per thread, so the second copy must ask from
-        // another thread, as a second process would.
-        var secondAcquired = Task.Run(() =>
+        // another thread, as a second process would. A dedicated thread, not
+        // Task.Run: blocking on a task can inline it onto this same thread.
+        var secondAcquired = true;
+        var thread = new Thread(() =>
         {
             using var second = new SingleInstanceGate(_name);
-            return second.TryAcquire();
-        }).Result;
+            secondAcquired = second.TryAcquire();
+        });
+        thread.Start();
+        thread.Join();
 
         Assert.False(secondAcquired);
     }

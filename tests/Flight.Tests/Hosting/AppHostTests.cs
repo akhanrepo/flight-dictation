@@ -59,14 +59,14 @@ public class AppHostTests
             {
                 ["Flight:SupabaseUrl"] = "https://example.supabase.co/",
                 ["Flight:SupabaseAnonKey"] = "sb_publishable_test",
-                ["Flight:UpdateFeed"] = @"C:eleases",
+                ["Flight:UpdateFeed"] = @"C:/releases",
             }));
 
         var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
 
         Assert.Equal(new Uri("https://example.supabase.co/"), options.SupabaseUrl);
         Assert.Equal("sb_publishable_test", options.SupabaseAnonKey);
-        Assert.Equal(@"C:eleases", options.UpdateFeed);
+        Assert.Equal(@"C:/releases", options.UpdateFeed);
     }
 
     // A malformed appsettings.json crashes the shell before any window opens,
@@ -80,6 +80,16 @@ public class AppHostTests
         var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
 
         Assert.Equal("kcemhjdmvunqcnoqwpyr.supabase.co", options.SupabaseUrl?.Host);
+    }
+
+    [Fact]
+    public void AppHost_UsesTheToastPresenterAsTheDictationUi()
+    {
+        using var host = AppHost.Build();
+
+        Assert.Same(
+            host.Services.GetRequiredService<Flight.Core.Toast.ToastPresenter>(),
+            host.Services.GetRequiredService<IDictationUi>());
     }
 
     [Fact]

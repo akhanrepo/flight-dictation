@@ -5,6 +5,7 @@ using Flight.Core.Entitlement;
 using Flight.Core.Llm;
 using Flight.Core.Settings;
 using Flight.Core.Storage;
+using Flight.Core.Toast;
 using Flight.Core.Tray;
 using Flight.Core.Updates;
 using Flight.Core.Vocabulary;
@@ -47,6 +48,11 @@ public static class AppHost
         builder.Services.AddSingleton<IDictationSessionRepository, SqliteDictationSessionRepository>();
         builder.Services.AddSingleton<ISettingsStore, SqliteSettingsStore>();
         builder.Services.AddSingleton<DictationOrchestrator>();
+
+        // The toast's view model is the default dictation UI (feature #7);
+        // the window only renders ToastPresenter.View.
+        builder.Services.AddSingleton<ToastPresenter>();
+        builder.Services.AddSingleton<IDictationUi>(sp => sp.GetRequiredService<ToastPresenter>());
 
         // Vocabulary (feature #2). The embedding generator is platform-neutral
         // and model-free by default, so this pipeline works before the GGUF has
