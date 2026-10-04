@@ -1,0 +1,17 @@
+{
+  "icons": [
+    "flight.ico",
+    "flight-listening.ico",
+    "flight-paused.ico"
+  ],
+  "frames": {
+    "16": "small",
+    "20": "small",
+    "24": "small",
+    "32": "small",
+    "40": "full",
+    "48": "full",
+    "64": "full",
+    "256": "full"
+  }
+}

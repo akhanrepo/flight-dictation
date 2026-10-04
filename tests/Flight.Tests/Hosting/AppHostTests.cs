@@ -74,13 +74,7 @@ public class AppHostTests
     [Fact]
     public void AppHost_BindsTheShippedAppSettings()
     {
-        var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Flight.slnx")))
-        {
-            dir = dir.Parent;
-        }
-        Assert.NotNull(dir);
-        var appSettings = Path.Combine(dir.FullName, "src", "Flight.App", "appsettings.json");
+        var appSettings = RepoPaths.Combine("src", "Flight.App", "appsettings.json");
 
         using var host = AppHost.Build(configureConfiguration: config => config.AddJsonFile(appSettings));
         var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();

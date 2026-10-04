@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Flight">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3730A3"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="976" height="976" rx="228" fill="url(#tile)"/>
+  <g>
+    <rect x="218" y="712" width="56" height="124" rx="28" fill="#FFFFFF" fill-opacity="0.86"/>
+    <rect x="302" y="662" width="56" height="224" rx="28" fill="#FFFFFF" fill-opacity="0.86"/>
+    <rect x="386" y="700" width="56" height="148" rx="28" fill="#FFFFFF" fill-opacity="0.86"/>
+  </g>
+  <polygon points="818,206 250,470 490,552" fill="#FFFFFF"/>
+  <polygon points="818,206 490,552 584,782" fill="#C7D7FE"/>
+</svg>
