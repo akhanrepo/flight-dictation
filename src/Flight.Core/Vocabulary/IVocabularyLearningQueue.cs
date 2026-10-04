@@ -10,4 +10,7 @@ namespace Flight.Core.Vocabulary;
 public interface IVocabularyLearningQueue
 {
     void Enqueue(DictationSession session);
+
+    /// <summary>Completes once every enqueued session has been processed.</summary>
+    Task WaitForIdleAsync();
 }

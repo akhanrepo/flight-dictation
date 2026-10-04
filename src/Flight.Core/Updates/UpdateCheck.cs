@@ -18,6 +18,12 @@ public class UpdateCheck
         _logger = logger;
     }
 
+    /// <summary>The downloaded version waiting to apply, or null.</summary>
+    public string? StagedVersion { get; private set; }
+
+    /// <summary>Raised once a newer release has been downloaded and staged.</summary>
+    public event Action<string>? Staged;
+
     /// <returns>The version staged for next launch, or null.</returns>
     public async Task<string?> RunAsync(CancellationToken cancellationToken = default)
     {
@@ -35,6 +41,8 @@ public class UpdateCheck
             }
 
             _updater.ApplyOnExit();
+            StagedVersion = version;
+            Staged?.Invoke(version);
             _logger.LogInformation("Flight {Version} downloaded; it will be applied on exit", version);
             return version;
         }

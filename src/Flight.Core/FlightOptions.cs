@@ -24,6 +24,12 @@ public class FlightOptions
     /// <summary>Hard ceiling on STT + LLM processing before the pipeline reports an error.</summary>
     public TimeSpan ProcessingTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// On Quit, how long confirmed dictations get to finish vocabulary
+    /// learning before Flight exits anyway. Bounded so Quit never hangs.
+    /// </summary>
+    public TimeSpan ShutdownVocabularyGrace { get; set; } = TimeSpan.FromSeconds(3);
+
     /// <summary>Cloud trial length, measured from the first cloud dictation.</summary>
     public TimeSpan CloudTrialDuration { get; set; } = TimeSpan.FromDays(30);
 

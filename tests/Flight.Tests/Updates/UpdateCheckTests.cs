@@ -30,6 +30,21 @@ public class UpdateCheckTests
         Assert.True(_updater.ApplyOnExitRequested);
     }
 
+    // The tray offers "Restart to update" from this
+    [Fact]
+    public async Task UpdateCheck_ExposesTheStagedVersion()
+    {
+        _updater.AvailableVersion = "1.1.0";
+        var check = CreateCheck();
+        string? raised = null;
+        check.Staged += v => raised = v;
+
+        await check.RunAsync();
+
+        Assert.Equal("1.1.0", check.StagedVersion);
+        Assert.Equal("1.1.0", raised);
+    }
+
     [Fact]
     public async Task UpdateCheck_DoesNothingWhenUpToDate()
     {

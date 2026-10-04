@@ -48,6 +48,14 @@ public sealed class VelopackAppUpdater : IAppUpdater
         return update.TargetFullRelease.Version.ToString();
     }
 
+    public void RestartToApply()
+    {
+        if (_manager is not null && _downloaded is not null)
+        {
+            _manager.ApplyUpdatesAndRestart(_downloaded.TargetFullRelease);
+        }
+    }
+
     public void ApplyOnExit()
     {
         if (_manager is not null && _downloaded is not null)

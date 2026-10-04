@@ -274,6 +274,14 @@ public class DictationOrchestrator : IDisposable
     {
         _hotkey.Pressed -= OnHotkeyPressed;
         _hotkey.Released -= OnHotkeyReleased;
+
+        // Quitting mid-capture must not leave the microphone open.
+        if (State == DictationState.Capturing)
+        {
+            _capturer.Stop();
+            State = DictationState.Idle;
+        }
+
         GC.SuppressFinalize(this);
     }
 }

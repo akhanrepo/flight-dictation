@@ -266,6 +266,11 @@ public sealed class FakeVocabularyLearningQueue : IVocabularyLearningQueue
         Enqueued.Add(session);
         OnEnqueue?.Invoke();
     }
+
+    /// <summary>Completed by default; replace to simulate learning still in progress.</summary>
+    public Task IdleTask { get; set; } = Task.CompletedTask;
+
+    public Task WaitForIdleAsync() => IdleTask;
 }
 
 public sealed class FakeSettingsStore : ISettingsStore
@@ -297,6 +302,33 @@ public sealed class FakeAppUpdater : Flight.Core.Updates.IAppUpdater
     }
 
     public void ApplyOnExit() => ApplyOnExitRequested = true;
+
+    public bool RestartRequested { get; private set; }
+
+    public void RestartToApply() => RestartRequested = true;
+}
+
+public sealed class FakeShellActions : Flight.Core.Tray.IShellActions
+{
+    public List<string> Calls { get; } = [];
+
+    public void OpenSettings() => Calls.Add("settings");
+
+    public void OpenAccount() => Calls.Add("account");
+
+    public void Quit() => Calls.Add("quit");
+
+    public void RestartToUpdate() => Calls.Add("restart-to-update");
+}
+
+public sealed class FakeStartupRegistration : Flight.Core.Startup.IStartupRegistration
+{
+    public bool IsAvailable { get; set; } = true;
+    public bool IsEnabled { get; set; }
+
+    public void Enable() => IsEnabled = true;
+
+    public void Disable() => IsEnabled = false;
 }
 
 public sealed class InMemorySecretStore : ISecretStore

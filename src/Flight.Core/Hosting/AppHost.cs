@@ -5,6 +5,7 @@ using Flight.Core.Entitlement;
 using Flight.Core.Llm;
 using Flight.Core.Settings;
 using Flight.Core.Storage;
+using Flight.Core.Tray;
 using Flight.Core.Updates;
 using Flight.Core.Vocabulary;
 using Microsoft.Extensions.Configuration;
@@ -85,6 +86,12 @@ public static class AppHost
 
         // Auto-update: the shell supplies IAppUpdater (Velopack).
         builder.Services.AddSingleton<UpdateCheck>();
+
+        // Tray (feature #6). The shell supplies IShellActions and
+        // IStartupRegistration; the presenter holds all tray decisions.
+        builder.Services.AddSingleton<TrayPresenter>();
+        builder.Services.AddSingleton<ShutdownCoordinator>();
+        builder.Services.AddSingleton<FirstRunNotice>();
 
         // Platform-bound services (hotkey, audio, STT/LLM engines, clipboard, UI)
         // are registered by the caller: the WinUI shell provides real

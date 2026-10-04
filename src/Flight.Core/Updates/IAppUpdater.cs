@@ -21,4 +21,7 @@ public interface IAppUpdater
     /// it — an update never interrupts a dictation in progress.
     /// </summary>
     void ApplyOnExit();
+
+    /// <summary>Exits now, applies the downloaded release, and relaunches.</summary>
+    void RestartToApply();
 }

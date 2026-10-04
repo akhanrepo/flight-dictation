@@ -48,7 +48,6 @@ public sealed class BackgroundVocabularyLearningQueue : IVocabularyLearningQueue
         }
     }
 
-    /// <summary>Completes once every enqueued session has been processed.</summary>
     public Task WaitForIdleAsync() => _idle.Task;
 
     private async Task ProcessAsync()
