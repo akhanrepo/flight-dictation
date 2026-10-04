@@ -25,11 +25,25 @@ public class HttpSupabaseClient : ISupabaseClient
         _options = options;
     }
 
-    public Task<Account> SignUpAsync(string email, string password, CancellationToken cancellationToken = default) =>
-        AuthenticateAsync("auth/v1/signup", email, password, cancellationToken);
+    public async Task<Account> SignUpAsync(string email, string password, CancellationToken cancellationToken = default)
+    {
+        var body = await PostAuthAsync("auth/v1/signup", new { email, password }, cancellationToken);
 
-    public Task<Account> SignInAsync(string email, string password, CancellationToken cancellationToken = default) =>
-        AuthenticateAsync("auth/v1/token?grant_type=password", email, password, cancellationToken);
+        // With "Confirm email" on, signup returns the bare user and no session.
+        if (string.IsNullOrEmpty(body.AccessToken))
+        {
+            throw new EmailConfirmationRequiredException();
+        }
+
+        return ToAccount(body, email);
+    }
+
+    public async Task<Account> SignInAsync(string email, string password, CancellationToken cancellationToken = default) =>
+        ToAccount(await PostAuthAsync("auth/v1/token?grant_type=password", new { email, password }, cancellationToken), email);
+
+    public async Task<Account> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default) =>
+        ToAccount(await PostAuthAsync(
+            "auth/v1/token?grant_type=refresh_token", new { refresh_token = refreshToken }, cancellationToken), email: null);
 
     public async Task<RemoteEntitlement> GetEntitlementAsync(
         Account account,
@@ -56,17 +70,17 @@ public class HttpSupabaseClient : ISupabaseClient
             : body.Url;
     }
 
-    private async Task<Account> AuthenticateAsync(
-        string path,
-        string email,
-        string password,
-        CancellationToken cancellationToken)
+    private async Task<AuthResponse> PostAuthAsync(string path, object body, CancellationToken cancellationToken)
     {
-        var response = await SendAsync(
-            HttpMethod.Post, path, account: null, new { email, password }, cancellationToken);
-        var body = await ReadAsync<AuthResponse>(response, cancellationToken);
+        var response = await SendAsync(HttpMethod.Post, path, account: null, body, cancellationToken);
+        return await ReadAsync<AuthResponse>(response, cancellationToken);
+    }
 
-        if (body.User?.Id is not { Length: > 0 } id)
+    private static Account ToAccount(AuthResponse body, string? email)
+    {
+        if (body.User?.Id is not { Length: > 0 } id
+            || (body.User.Email ?? email) is not { } accountEmail
+            || string.IsNullOrEmpty(body.AccessToken))
         {
             throw new SupabaseException("The backend didn't return an account.");
         }
@@ -74,8 +88,9 @@ public class HttpSupabaseClient : ISupabaseClient
         return new Account
         {
             Id = id,
-            Email = body.User.Email ?? email,
+            Email = accountEmail,
             AccessToken = body.AccessToken,
+            RefreshToken = body.RefreshToken,
         };
     }
 
@@ -117,7 +132,8 @@ public class HttpSupabaseClient : ISupabaseClient
             var detail = await response.Content.ReadAsStringAsync(cancellationToken);
             response.Dispose();
             throw new SupabaseException(
-                $"The Flight backend returned {(int)response.StatusCode}. {detail.Trim()}".Trim());
+                $"The Flight backend returned {(int)response.StatusCode}. {detail.Trim()}".Trim(),
+                statusCode: (int)response.StatusCode);
         }
 
         return response;
@@ -143,6 +159,9 @@ public class HttpSupabaseClient : ISupabaseClient
     {
         [JsonPropertyName("access_token")]
         public string? AccessToken { get; set; }
+
+        [JsonPropertyName("refresh_token")]
+        public string? RefreshToken { get; set; }
 
         [JsonPropertyName("user")]
         public AuthUser? User { get; set; }

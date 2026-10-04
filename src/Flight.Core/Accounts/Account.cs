@@ -12,6 +12,12 @@ public record Account
 
     /// <summary>Supabase access token for authenticated calls. Never persisted in plaintext.</summary>
     public string? AccessToken { get; init; }
+
+    /// <summary>
+    /// Exchanged for a new access token when the current one expires (Supabase
+    /// issues hour-long JWTs). Never persisted in plaintext.
+    /// </summary>
+    public string? RefreshToken { get; init; }
 }
 
 /// <summary>

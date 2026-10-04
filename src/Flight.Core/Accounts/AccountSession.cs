@@ -32,6 +32,7 @@ public class AccountSession : IAccountSession
                     Id = accountId,
                     Email = email,
                     AccessToken = _secrets.Get(SecretNames.AccountAccessToken),
+                    RefreshToken = _secrets.Get(SecretNames.AccountRefreshToken),
                 };
             }
         }
@@ -49,6 +50,7 @@ public class AccountSession : IAccountSession
     {
         Current = null;
         _secrets.Remove(SecretNames.AccountAccessToken);
+        _secrets.Remove(SecretNames.AccountRefreshToken);
         _secrets.Remove(SecretNames.AccountEmail);
 
         // Clear the cached entitlement too: it belonged to the account that
@@ -61,6 +63,41 @@ public class AccountSession : IAccountSession
         }, cancellationToken);
     }
 
+    public async Task<T> CallAsync<T>(
+        Func<Account, CancellationToken, Task<T>> call,
+        CancellationToken cancellationToken = default)
+    {
+        var account = Current ?? throw new InvalidOperationException("Sign in first.");
+        try
+        {
+            return await call(account, cancellationToken);
+        }
+        catch (SupabaseException ex) when (ex.IsUnauthorized)
+        {
+            return await call(await RefreshAsync(account, cancellationToken), cancellationToken);
+        }
+    }
+
+    private async Task<Account> RefreshAsync(Account account, CancellationToken cancellationToken)
+    {
+        Account refreshed;
+        try
+        {
+            refreshed = account.RefreshToken is { } refreshToken
+                ? await _supabase.RefreshAsync(refreshToken, cancellationToken)
+                : throw new SupabaseException("No refresh token is stored.", statusCode: 401);
+        }
+        catch (SupabaseException ex) when (ex.StatusCode is >= 400 and < 500)
+        {
+            // The backend answered and said no: the session is gone for good.
+            // An unreachable backend (no status) propagates as offline.
+            await SignOutAsync(cancellationToken);
+            throw new SessionExpiredException(ex);
+        }
+
+        return await AdoptAsync(refreshed, cancellationToken);
+    }
+
     private async Task<Account> AdoptAsync(Account account, CancellationToken cancellationToken)
     {
         Current = account;
@@ -68,6 +105,10 @@ public class AccountSession : IAccountSession
         if (account.AccessToken is { } token)
         {
             _secrets.Set(SecretNames.AccountAccessToken, token);
+        }
+        if (account.RefreshToken is { } refresh)
+        {
+            _secrets.Set(SecretNames.AccountRefreshToken, refresh);
         }
 
         await _devices.UpdateAsync(_devices.Current with { AccountId = account.Id }, cancellationToken);

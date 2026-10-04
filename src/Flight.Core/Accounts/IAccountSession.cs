@@ -14,4 +14,14 @@ public interface IAccountSession
     Task<Account> SignInAsync(string email, string password, CancellationToken cancellationToken = default);
 
     Task SignOutAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs a backend call as <see cref="Current"/>. An expired access token
+    /// is refreshed once and the call retried; if the refresh itself is
+    /// rejected the account is signed out and <see cref="SessionExpiredException"/>
+    /// is thrown. Network failures propagate unchanged, so callers can still
+    /// treat them as "offline".
+    /// </summary>
+    /// <exception cref="InvalidOperationException">No account is signed in.</exception>
+    Task<T> CallAsync<T>(Func<Account, CancellationToken, Task<T>> call, CancellationToken cancellationToken = default);
 }

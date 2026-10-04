@@ -19,5 +19,6 @@ public static class SecretNames
 {
     public const string CloudLlmApiKey = "cloud-llm-api-key";
     public const string AccountAccessToken = "supabase-access-token";
+    public const string AccountRefreshToken = "supabase-refresh-token";
     public const string AccountEmail = "supabase-account-email";
 }

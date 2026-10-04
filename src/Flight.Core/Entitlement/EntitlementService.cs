@@ -95,7 +95,7 @@ public class EntitlementService : IEntitlementService
 
         try
         {
-            var remote = await _supabase.GetEntitlementAsync(account, cancellationToken);
+            var remote = await _account.CallAsync(_supabase.GetEntitlementAsync, cancellationToken);
             await _devices.UpdateAsync(device with
             {
                 AccountId = account.Id,
@@ -112,6 +112,14 @@ public class EntitlementService : IEntitlementService
         catch (OperationCanceledException)
         {
             throw;
+        }
+        catch (SessionExpiredException ex)
+        {
+            // Not "offline": the backend answered and the session is gone, and
+            // the account has already been signed out (which clears the cache
+            // too). The way back is signing in again, not waiting.
+            return new EntitlementDecision(false, EntitlementStatus.TrialExpired, ex.Message, trialEndsAt,
+                OffersUpgrade: true);
         }
         catch (Exception ex)
         {

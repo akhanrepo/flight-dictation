@@ -29,9 +29,11 @@ public class StripeBillingPortal : IBillingPortal
         Func<Account, CancellationToken, Task<string>> getUrl,
         CancellationToken cancellationToken)
     {
-        var account = _account.Current
-            ?? throw new InvalidOperationException("Sign in before opening Stripe checkout or the billing portal.");
+        if (_account.Current is null)
+        {
+            throw new InvalidOperationException("Sign in before opening Stripe checkout or the billing portal.");
+        }
 
-        _launcher.Open(await getUrl(account, cancellationToken));
+        _launcher.Open(await _account.CallAsync(getUrl, cancellationToken));
     }
 }

@@ -195,6 +195,23 @@ public class EntitlementServiceTests
         Assert.Equal(EntitlementStatus.Paid, decision.Status);
     }
 
+    // A revoked session is not "offline": the grace period doesn't apply, and
+    // the user is told to sign in again rather than to wait
+    [Fact]
+    public async Task ExpiredSession_Blocks_Cloud_And_Asks_To_Sign_In_Again()
+    {
+        AddCloudDictation(Now.AddDays(-31));
+        await SignInAsync();
+        CacheEntitlement(RemoteEntitlements.Paid, Now.AddDays(-2));
+        _account.SessionExpired = true;
+
+        var decision = await CreateService().EvaluateAsync();
+
+        Assert.False(decision.CloudAllowed);
+        Assert.Contains("Sign in again", decision.Message);
+        Assert.True(decision.OffersUpgrade);
+    }
+
     // Criterion: Supabase unreachable and no valid cache — cloud fails closed
     // with a "can't verify" message, deliberately not fail-open
     [Fact]

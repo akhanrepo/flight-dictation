@@ -361,6 +361,20 @@ public sealed class FakeAccountSession : IAccountSession
         Current = null;
         return Task.CompletedTask;
     }
+
+    /// <summary>When set, the next backend call behaves as if the refresh token was rejected.</summary>
+    public bool SessionExpired { get; set; }
+
+    public Task<T> CallAsync<T>(Func<Account, CancellationToken, Task<T>> call, CancellationToken cancellationToken = default)
+    {
+        var account = Current ?? throw new InvalidOperationException("Sign in first.");
+        if (SessionExpired)
+        {
+            Current = null;
+            throw new SessionExpiredException();
+        }
+        return call(account, cancellationToken);
+    }
 }
 
 public sealed class FakeSupabaseClient : ISupabaseClient
@@ -371,27 +385,69 @@ public sealed class FakeSupabaseClient : ISupabaseClient
     public string CheckoutUrl { get; set; } = "https://checkout.stripe.com/test-session";
     public string PortalUrl { get; set; } = "https://billing.stripe.com/test-portal";
 
+    /// <summary>
+    /// When set, calls carrying any other access token get a 401, as Supabase
+    /// does for an expired JWT. Null accepts every token.
+    /// </summary>
+    public string? ValidAccessToken { get; set; }
+
+    /// <summary>When set, refresh fails with this exception (e.g. a 400 for a revoked token).</summary>
+    public Exception? RefreshException { get; set; }
+
+    public int RefreshCallCount { get; private set; }
+
     public Task<Account> SignUpAsync(string email, string password, CancellationToken cancellationToken = default) =>
-        Task.FromResult(new Account { Id = "account-1", Email = email, AccessToken = "token" });
+        Task.FromResult(new Account { Id = "account-1", Email = email, AccessToken = "token", RefreshToken = "refresh" });
 
     public Task<Account> SignInAsync(string email, string password, CancellationToken cancellationToken = default) =>
         SignUpAsync(email, password, cancellationToken);
 
+    public Task<Account> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+    {
+        RefreshCallCount++;
+        if (RefreshException is not null)
+        {
+            throw RefreshException;
+        }
+        return Task.FromResult(new Account
+        {
+            Id = "account-1",
+            Email = "ali@example.com",
+            AccessToken = ValidAccessToken ?? "token-refreshed",
+            RefreshToken = "refresh-rotated",
+        });
+    }
+
     public Task<RemoteEntitlement> GetEntitlementAsync(Account account, CancellationToken cancellationToken = default)
     {
         EntitlementCallCount++;
+        ThrowIfFailing(account);
+        return Task.FromResult(new RemoteEntitlement(EntitlementToReturn));
+    }
+
+    public Task<string> CreateCheckoutUrlAsync(Account account, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing(account);
+        return Task.FromResult(CheckoutUrl);
+    }
+
+    public Task<string> CreatePortalUrlAsync(Account account, CancellationToken cancellationToken = default)
+    {
+        ThrowIfFailing(account);
+        return Task.FromResult(PortalUrl);
+    }
+
+    private void ThrowIfFailing(Account account)
+    {
         if (ExceptionToThrow is not null)
         {
             throw ExceptionToThrow;
         }
-        return Task.FromResult(new RemoteEntitlement(EntitlementToReturn));
+        if (ValidAccessToken is not null && account.AccessToken != ValidAccessToken)
+        {
+            throw new SupabaseException("JWT expired", statusCode: 401);
+        }
     }
-
-    public Task<string> CreateCheckoutUrlAsync(Account account, CancellationToken cancellationToken = default) =>
-        ExceptionToThrow is not null ? throw ExceptionToThrow : Task.FromResult(CheckoutUrl);
-
-    public Task<string> CreatePortalUrlAsync(Account account, CancellationToken cancellationToken = default) =>
-        ExceptionToThrow is not null ? throw ExceptionToThrow : Task.FromResult(PortalUrl);
 }
 
 public sealed class FakeUrlLauncher : IUrlLauncher
