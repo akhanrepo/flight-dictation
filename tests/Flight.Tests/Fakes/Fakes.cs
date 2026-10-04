@@ -331,6 +331,17 @@ public sealed class FakeStartupRegistration : Flight.Core.Startup.IStartupRegist
     public void Disable() => IsEnabled = false;
 }
 
+public sealed class FakeForegroundWindow : Flight.Core.Toast.IForegroundWindow
+{
+    public nint Current { get; set; }
+
+    public bool TryActivate(nint window)
+    {
+        Current = window;
+        return true;
+    }
+}
+
 public sealed class InMemorySecretStore : ISecretStore
 {
     private readonly Dictionary<string, string> _secrets = [];
