@@ -6,6 +6,7 @@ using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Stt;
 using Flight.Tests.Fakes;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
@@ -46,5 +47,34 @@ public class AppHostTests
         });
 
         Assert.NotNull(host.Services.GetRequiredService<DictationOrchestrator>());
+    }
+
+    [Fact]
+    public void AppHost_BindsSupabaseSettingsFromConfiguration()
+    {
+        // The shell ships appsettings.json with the backend URL and publishable
+        // key; without binding, every account call fails as "not configured".
+        using var host = AppHost.Build(configureConfiguration: config => config.AddInMemoryCollection(
+            new Dictionary<string, string?>
+            {
+                ["Flight:SupabaseUrl"] = "https://example.supabase.co/",
+                ["Flight:SupabaseAnonKey"] = "sb_publishable_test",
+            }));
+
+        var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
+
+        Assert.Equal(new Uri("https://example.supabase.co/"), options.SupabaseUrl);
+        Assert.Equal("sb_publishable_test", options.SupabaseAnonKey);
+    }
+
+    [Fact]
+    public void AppHost_KeepsOptionDefaultsWhenConfigurationIsAbsent()
+    {
+        using var host = AppHost.Build();
+
+        var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
+
+        Assert.Equal("ggml-base-q5_1.bin", options.SttModel.FileName);
+        Assert.Equal(TimeSpan.FromDays(30), options.CloudTrialDuration);
     }
 }

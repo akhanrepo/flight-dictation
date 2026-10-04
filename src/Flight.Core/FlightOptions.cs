@@ -6,6 +6,9 @@ namespace Flight.Core;
 /// </summary>
 public class FlightOptions
 {
+    /// <summary>Configuration section bound onto these options by <c>AppHost</c>.</summary>
+    public const string SectionName = "Flight";
+
     public static string DefaultDataDirectory =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Flight");
 
@@ -40,7 +43,7 @@ public class FlightOptions
     /// </summary>
     public TimeSpan EntitlementOfflineGrace { get; set; } = TimeSpan.FromDays(7);
 
-    /// <summary>Supabase project URL. Set at packaging time.</summary>
+    /// <summary>Supabase project URL. Shipped in Flight.App's appsettings.json.</summary>
     public Uri? SupabaseUrl { get; set; }
 
     /// <summary>Supabase anon/publishable key. Public by design, not a secret.</summary>

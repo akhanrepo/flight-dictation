@@ -6,6 +6,7 @@ using Flight.Core.Llm;
 using Flight.Core.Settings;
 using Flight.Core.Storage;
 using Flight.Core.Vocabulary;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -18,11 +19,28 @@ namespace Flight.Core.Hosting;
 /// </summary>
 public static class AppHost
 {
-    public static IHost Build(Action<IServiceCollection>? configureServices = null)
+    public static IHost Build(
+        Action<IServiceCollection>? configureServices = null,
+        Action<IConfigurationBuilder>? configureConfiguration = null)
     {
-        var builder = Host.CreateApplicationBuilder();
+        // Content root is the exe directory, not the working directory, so the
+        // appsettings.json shipped beside Flight.App.exe is found however the
+        // app was launched.
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            ContentRootPath = AppContext.BaseDirectory,
+        });
+        configureConfiguration?.Invoke(builder.Configuration);
 
-        builder.Services.AddSingleton<FlightOptions>();
+        // The "Flight" section (appsettings.json, or Flight__* environment
+        // variables) overrides FlightOptions defaults — this is how the
+        // packaged build gets its Supabase URL and publishable key.
+        builder.Services.AddSingleton(sp =>
+        {
+            var options = new FlightOptions();
+            sp.GetRequiredService<IConfiguration>().GetSection(FlightOptions.SectionName).Bind(options);
+            return options;
+        });
         builder.Services.AddSingleton<FlightDatabase>();
         builder.Services.AddSingleton<IDictationSessionRepository, SqliteDictationSessionRepository>();
         builder.Services.AddSingleton<ISettingsStore, SqliteSettingsStore>();

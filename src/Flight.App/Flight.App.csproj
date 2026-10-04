@@ -28,6 +28,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Bound onto FlightOptions by AppHost (the "Flight" section) -->
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Flight.Core\Flight.Core.csproj" />
   </ItemGroup>
 
