@@ -44,7 +44,12 @@ public class VocabularyContextProvider : IVocabularyContextProvider
                 _options.VocabularyContextMinimumSimilarity,
                 cancellationToken);
 
-            return matches.Select(match => match.Entry.Term).ToList();
+            // Also filtered on the way out, so terms stored before the rules
+            // existed (sentences, mostly) are never injected.
+            return matches
+                .Select(match => match.Entry.Term)
+                .Where(VocabularyTermRules.IsPlausibleTerm)
+                .ToList();
         }
         catch (OperationCanceledException)
         {

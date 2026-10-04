@@ -12,11 +12,11 @@ public sealed class LlmTermExtractor : ITermExtractor
     private const string SystemPrompt =
         "You extract domain vocabulary from text. List proper nouns, client and company names, " +
         "product names, acronyms, and technical jargon that a speech-to-text system would be likely " +
-        "to mis-transcribe. Copy each term exactly as it appears in the text. " +
+        "to mis-transcribe. Each term is a name or a short phrase of at most four words, never a " +
+        "sentence. Copy each term exactly as it appears in the text. " +
         "Output one term per line, nothing else. No numbering, no commentary, no explanations. " +
         "If there are no such terms, output nothing.";
 
-    private const int MaxTermLength = 60;
     private const int MaxTermsPerDictation = 20;
 
     private readonly ILlmCompletion _llm;
@@ -67,13 +67,9 @@ public sealed class LlmTermExtractor : ITermExtractor
 
             term = term.Trim('"', '\'', ',', ';', ':').Trim();
 
-            if (term.Length == 0 || term.Length > MaxTermLength)
-            {
-                continue;
-            }
-
-            // A term has to contain a letter; pure punctuation or digits are noise.
-            if (!term.Any(char.IsLetter))
+            // Names and jargon only: a sentence stored as a "term" gets
+            // pasted into every later cleanup.
+            if (!VocabularyTermRules.IsPlausibleTerm(term))
             {
                 continue;
             }

@@ -135,4 +135,31 @@ public class VocabularyContextInjectionTests
         public Task<IReadOnlyList<VocabularyEntry>> GetAllAsync(CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("store unavailable");
     }
+
+    // Rows stored before the term rules existed are never injected
+    [Fact]
+    public async Task StoredSentences_Are_Never_Injected()
+    {
+        await StoreTermAsync("Let's see if it works. Let's see if it is working.");
+        await StoreTermAsync("Contoso");
+        var cleaner = new PromptTextCleaner(_llm, CreateProvider());
+
+        await cleaner.CleanAsync(new TranscriptCleanupRequest("let's see if it works with contoso"));
+
+        Assert.DoesNotContain("Let's see if it works.", _llm.LastRequest!.SystemPrompt);
+    }
+
+    // The bug end to end: the model pastes in text the speaker never said,
+    // and the user gets their own words instead
+    [Fact]
+    public async Task InventedText_Falls_Back_To_The_Speakers_Own_Words()
+    {
+        _llm.ResponseToReturn =
+            "Let's see if it works. Let's see if it is working. The client wants the audit by Friday.";
+        var cleaner = new PromptTextCleaner(_llm, CreateProvider());
+
+        var cleaned = await cleaner.CleanAsync(new TranscriptCleanupRequest("um the client wants the audit by friday"));
+
+        Assert.Equal("The client wants the audit by friday.", cleaned);
+    }
 }

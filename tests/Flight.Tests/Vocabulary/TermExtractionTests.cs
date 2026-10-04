@@ -71,4 +71,13 @@ public class TermExtractionTests
         Assert.Empty(terms);
         Assert.Empty(_llm.Requests);
     }
+
+    // A whole dictation echoed back as a "term" must not be stored
+    [Fact]
+    public void Parse_Drops_Sentences()
+    {
+        var terms = LlmTermExtractor.Parse("Let's see if it works. Let's see if it is working.\nContoso");
+
+        Assert.Equal(["Contoso"], terms);
+    }
 }
