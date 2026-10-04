@@ -59,12 +59,33 @@ public class AppHostTests
             {
                 ["Flight:SupabaseUrl"] = "https://example.supabase.co/",
                 ["Flight:SupabaseAnonKey"] = "sb_publishable_test",
+                ["Flight:UpdateFeed"] = @"C:eleases",
             }));
 
         var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
 
         Assert.Equal(new Uri("https://example.supabase.co/"), options.SupabaseUrl);
         Assert.Equal("sb_publishable_test", options.SupabaseAnonKey);
+        Assert.Equal(@"C:eleases", options.UpdateFeed);
+    }
+
+    // A malformed appsettings.json crashes the shell before any window opens,
+    // so the file that actually ships is checked here.
+    [Fact]
+    public void AppHost_BindsTheShippedAppSettings()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Flight.slnx")))
+        {
+            dir = dir.Parent;
+        }
+        Assert.NotNull(dir);
+        var appSettings = Path.Combine(dir.FullName, "src", "Flight.App", "appsettings.json");
+
+        using var host = AppHost.Build(configureConfiguration: config => config.AddJsonFile(appSettings));
+        var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
+
+        Assert.Equal("kcemhjdmvunqcnoqwpyr.supabase.co", options.SupabaseUrl?.Host);
     }
 
     [Fact]
@@ -76,5 +97,6 @@ public class AppHostTests
 
         Assert.Equal("ggml-base-q5_1.bin", options.SttModel.FileName);
         Assert.Equal(TimeSpan.FromDays(30), options.CloudTrialDuration);
+        Assert.Null(options.UpdateFeed);
     }
 }

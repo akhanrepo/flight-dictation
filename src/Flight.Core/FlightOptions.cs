@@ -50,10 +50,11 @@ public class FlightOptions
     public string? SupabaseAnonKey { get; set; }
 
     /// <summary>
-    /// Where installed copies look for new releases (a GitHub repo URL). Kept
-    /// separate from the private source repo so clients need no token.
+    /// Where installed copies look for new releases: a local folder of
+    /// <c>vpk pack</c> output (personal testing) or a public GitHub repo URL.
+    /// Null disables auto-update.
     /// </summary>
-    public Uri UpdateFeedUrl { get; set; } = new("https://github.com/akhanrepo/flight-releases");
+    public string? UpdateFeed { get; set; }
 
     /// <summary>
     /// OpenAI-compatible chat-completions endpoint. The PRD leaves the cloud

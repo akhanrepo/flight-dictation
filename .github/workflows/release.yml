@@ -1,16 +1,14 @@
 name: Release
 
-# Tag vX.Y.Z on main to build the Velopack installer and publish it.
-# Installers and update packages go to the public releases repo
-# (FlightOptions.UpdateFeedUrl) so installed clients need no token; that
-# needs a RELEASES_TOKEN secret with contents:write on that repo. Without
-# it, the build is still attached to the workflow run as an artifact.
+# Tag vX.Y.Z on main to build the Velopack installer and update package.
+# The output is attached to the workflow run as an artifact; nothing is
+# published. For local testing, scripts/pack-local.ps1 does the same into
+# artifacts\releases (the update feed in appsettings.json).
 on:
   push:
     tags: ['v*']
 
 env:
-  RELEASES_REPO: https://github.com/akhanrepo/flight-releases
   # Not "Flight": Velopack installs to %LOCALAPPDATA%\<packId> and deletes it
   # on uninstall, and %LOCALAPPDATA%\Flight holds the user's database and models.
   PACK_ID: FlightApp
@@ -18,8 +16,6 @@ env:
 jobs:
   release:
     runs-on: windows-latest
-    env:
-      RELEASES_TOKEN: ${{ secrets.RELEASES_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -36,20 +32,12 @@ jobs:
           -p:Platform=x64 -p:Version=${{ env.VERSION }} -o publish
       - name: Install vpk
         run: dotnet tool install -g vpk --version 1.2.161
-      - name: Fetch previous release (for delta updates)
-        if: env.RELEASES_TOKEN != ''
-        run: vpk download github --repoUrl ${{ env.RELEASES_REPO }} --token ${{ env.RELEASES_TOKEN }}
       # Code signing: add --signParams (or --azureTrustedSignFile) here once
       # there's a certificate. Unsigned builds trigger a SmartScreen warning.
       - name: Pack installer
         run: >
           vpk pack --packId ${{ env.PACK_ID }} --packVersion ${{ env.VERSION }}
           --packDir publish --mainExe Flight.App.exe --packTitle Flight
-      - name: Upload to releases repo
-        if: env.RELEASES_TOKEN != ''
-        run: >
-          vpk upload github --repoUrl ${{ env.RELEASES_REPO }} --token ${{ env.RELEASES_TOKEN }}
-          --publish --releaseName "Flight ${{ env.VERSION }}" --tag v${{ env.VERSION }}
       - uses: actions/upload-artifact@v4
         with:
           name: flight-${{ env.VERSION }}
