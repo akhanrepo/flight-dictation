@@ -17,12 +17,16 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Program.Main runs Velopack's install/update hooks before WinUI starts -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
+    <!-- WinMM only (WaveInEvent): the NAudio meta-package drags in WinForms/WPF -->
+    <PackageReference Include="NAudio.WinMM" Version="2.2.1" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
     <!-- DPAPI for the cloud API key: encrypted at rest under the current user -->
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
@@ -35,5 +39,16 @@
   <ItemGroup>
     <ProjectReference Include="..\Flight.Core\Flight.Core.csproj" />
   </ItemGroup>
+
+  <!-- Whisper.net and LLamaSharp ship native libraries for every OS; an
+       installer only needs the one it was published for. -->
+  <Target Name="TrimForeignNativeRuntimes" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <_PublishedRuntimeDirs Include="$([System.IO.Directory]::GetDirectories('$(PublishDir)runtimes'))"
+                             Condition="Exists('$(PublishDir)runtimes')" />
+      <_ForeignRuntimeDirs Include="@(_PublishedRuntimeDirs)" Condition="'%(Filename)%(Extension)' != '$(RuntimeIdentifier)'" />
+    </ItemGroup>
+    <RemoveDir Directories="@(_ForeignRuntimeDirs)" />
+  </Target>
 
 </Project>

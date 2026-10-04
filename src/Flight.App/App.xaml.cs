@@ -19,6 +19,7 @@ using Flight.Core.Security;
 using Flight.Core.Settings;
 using Flight.Core.Stt;
 using Flight.Core.Tools;
+using Flight.Core.Updates;
 using Flight.Core.Vocabulary;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -46,6 +47,7 @@ public partial class App : Application
             services.AddSingleton(sp => new LocalLlmEngine(sp.GetRequiredService<LlamaCompletion>()));
             services.AddSingleton<ISecretStore, DpapiSecretStore>();
             services.AddSingleton<IUrlLauncher, BrowserUrlLauncher>();
+            services.AddSingleton<IAppUpdater, VelopackAppUpdater>();
             // Real embeddings come from the same loaded GGUF, with the
             // model-free generator as the fallback path.
             services.AddSingleton<IEmbeddingGenerator>(sp => new LlamaEmbeddingGenerator(
@@ -94,6 +96,9 @@ public partial class App : Application
         }
 
         _orchestrator.Start();
+
+        // Background; applies on exit and never throws.
+        _ = Host.Services.GetRequiredService<UpdateCheck>().RunAsync();
     }
 
     private SettingsWindow? _settingsWindow;

@@ -5,6 +5,7 @@ using Flight.Core.Entitlement;
 using Flight.Core.Llm;
 using Flight.Core.Settings;
 using Flight.Core.Storage;
+using Flight.Core.Updates;
 using Flight.Core.Vocabulary;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -81,6 +82,9 @@ public static class AppHost
         builder.Services.AddSingleton<IAccountSession, AccountSession>();
         builder.Services.AddSingleton<IEntitlementService, EntitlementService>();
         builder.Services.AddSingleton<IBillingPortal, StripeBillingPortal>();
+
+        // Auto-update: the shell supplies IAppUpdater (Velopack).
+        builder.Services.AddSingleton<UpdateCheck>();
 
         // Platform-bound services (hotkey, audio, STT/LLM engines, clipboard, UI)
         // are registered by the caller: the WinUI shell provides real

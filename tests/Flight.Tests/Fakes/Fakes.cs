@@ -282,6 +282,23 @@ public sealed class FakeSettingsStore : ISettingsStore
     }
 }
 
+public sealed class FakeAppUpdater : Flight.Core.Updates.IAppUpdater
+{
+    public bool IsInstalled { get; set; } = true;
+    public string? AvailableVersion { get; set; }
+    public Exception? ExceptionToThrow { get; set; }
+    public int DownloadCount { get; private set; }
+    public bool ApplyOnExitRequested { get; private set; }
+
+    public Task<string?> DownloadLatestAsync(CancellationToken cancellationToken = default)
+    {
+        DownloadCount++;
+        return ExceptionToThrow is not null ? throw ExceptionToThrow : Task.FromResult(AvailableVersion);
+    }
+
+    public void ApplyOnExit() => ApplyOnExitRequested = true;
+}
+
 public sealed class InMemorySecretStore : ISecretStore
 {
     private readonly Dictionary<string, string> _secrets = [];

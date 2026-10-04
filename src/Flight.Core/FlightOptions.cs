@@ -50,6 +50,12 @@ public class FlightOptions
     public string? SupabaseAnonKey { get; set; }
 
     /// <summary>
+    /// Where installed copies look for new releases (a GitHub repo URL). Kept
+    /// separate from the private source repo so clients need no token.
+    /// </summary>
+    public Uri UpdateFeedUrl { get; set; } = new("https://github.com/akhanrepo/flight-releases");
+
+    /// <summary>
     /// OpenAI-compatible chat-completions endpoint. The PRD leaves the cloud
     /// provider open; every budget-tier candidate (OpenAI, DeepSeek, Groq,
     /// Gemini's compat endpoint) speaks this shape, so switching provider is

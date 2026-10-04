@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  dotnet:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test
+        run: dotnet test Flight.slnx --configuration Release
+      - name: Build Flight.App (x64)
+        run: dotnet build src/Flight.App/Flight.App.csproj --configuration Release -p:Platform=x64
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Test Edge Function logic
+        run: deno test supabase/functions/
+      - name: Type-check Edge Functions
+        run: deno check supabase/functions/*/index.ts
