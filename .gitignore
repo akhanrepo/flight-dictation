@@ -9,3 +9,7 @@ artifacts/
 publish/
 AppPackages/
 BundleArtifacts/
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
