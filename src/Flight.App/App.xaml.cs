@@ -227,10 +227,13 @@ public partial class App : Application, IShellActions
     private void ShowSettings()
     {
         // One settings window; re-activate rather than stacking duplicates.
-        _settingsWindow ??= new SettingsWindow(
-            Host.Services.GetRequiredService<ISettingsStore>(),
-            Host.Services.GetRequiredService<ISecretStore>());
-        _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        if (_settingsWindow is null)
+        {
+            _settingsWindow = new SettingsWindow(
+                Host.Services.GetRequiredService<ISettingsStore>(),
+                Host.Services.GetRequiredService<ISecretStore>());
+            _settingsWindow.Closed += (_, _) => _settingsWindow = null;
+        }
         _settingsWindow.Activate();
     }
 
@@ -238,11 +241,14 @@ public partial class App : Application, IShellActions
 
     private void ShowAccount()
     {
-        _accountWindow ??= new AccountWindow(
-            Host.Services.GetRequiredService<IAccountSession>(),
-            Host.Services.GetRequiredService<IBillingPortal>(),
-            Host.Services.GetRequiredService<IEntitlementService>());
-        _accountWindow.Closed += (_, _) => _accountWindow = null;
+        if (_accountWindow is null)
+        {
+            _accountWindow = new AccountWindow(
+                Host.Services.GetRequiredService<IAccountSession>(),
+                Host.Services.GetRequiredService<IBillingPortal>(),
+                Host.Services.GetRequiredService<IEntitlementService>());
+            _accountWindow.Closed += (_, _) => _accountWindow = null;
+        }
         _accountWindow.Activate();
     }
 

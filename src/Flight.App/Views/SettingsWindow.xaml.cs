@@ -24,8 +24,9 @@ public sealed partial class SettingsWindow : Window
         _settings = settings;
         _secrets = secrets;
         InitializeComponent();
-        AppWindow.SetIcon(Platform.AppIcons.App);
         Title = "Flight settings";
+        TitleLogo.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(Platform.AppIcons.LogoPng));
+        Platform.WindowChrome.Apply(this, TitleBar, widthDip: 440, heightDip: 480);
         Load();
     }
 
@@ -144,6 +145,4 @@ public sealed partial class SettingsWindow : Window
               "Takes effect on your next dictation."
             : "Cleanup only, no translation. Takes effect on your next dictation.";
     }
-
-    private void OnCloseClicked(object sender, RoutedEventArgs e) => Close();
 }

@@ -4,39 +4,55 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid Padding="24" RowSpacing="12" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" x:Name="HeadingText" Style="{ThemeResource SubtitleTextBlockStyle}"
-                   Text="Your Flight account" />
+        <StackPanel x:Name="TitleBar" Orientation="Horizontal" Spacing="10" Padding="16,0" VerticalAlignment="Center">
+            <Image x:Name="TitleLogo" Width="16" Height="16" />
+            <TextBlock Text="Account" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
+        </StackPanel>
 
-        <TextBlock Grid.Row="1" TextWrapping="Wrap" Style="{ThemeResource CaptionTextBlockStyle}"
-                   Text="An account is only needed for cloud cleanup. Local dictation stays free and unlimited, with no account, forever." />
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Padding="16,4,16,16" Spacing="8">
+                <TextBlock x:Name="HeadingText" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="4,4,0,0"
+                           Text="Your Flight account" TextTrimming="CharacterEllipsis" />
+                <TextBlock TextWrapping="Wrap" Style="{StaticResource CaptionMutedTextStyle}" Margin="4,0,4,4"
+                           Text="Only needed for cloud cleanup. Local dictation stays free and unlimited, with no account." />
 
-        <StackPanel Grid.Row="2" x:Name="CredentialsPanel" Spacing="8">
-            <TextBox x:Name="EmailBox" Header="Email" />
-            <PasswordBox x:Name="PasswordBox" Header="Password" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="SignUpButton" Style="{ThemeResource AccentButtonStyle}"
-                        Click="OnSignUpClicked" Content="Create account" />
-                <Button x:Name="SignInButton" Click="OnSignInClicked" Content="Sign in" />
+                <Border x:Name="CredentialsPanel" Style="{StaticResource SettingsCardStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBox x:Name="EmailBox" Header="Email" InputScope="EmailSmtpAddress" />
+                        <PasswordBox x:Name="PasswordBox" Header="Password" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                            <Button x:Name="SignUpButton" Style="{StaticResource CompactAccentButtonStyle}"
+                                    Click="OnSignUpClicked" Content="Create account" />
+                            <Button x:Name="SignInButton" Style="{StaticResource CompactButtonStyle}"
+                                    Click="OnSignInClicked" Content="Sign in" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="SubscriptionPanel" Style="{StaticResource SettingsCardStyle}" Visibility="Collapsed">
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="CheckoutButton" Style="{StaticResource CompactAccentButtonStyle}"
+                                Click="OnCheckoutClicked" Content="Subscribe" />
+                        <Button x:Name="PortalButton" Grid.Column="1" Style="{StaticResource CompactButtonStyle}"
+                                Click="OnPortalClicked" Content="Manage" />
+                        <Button x:Name="SignOutButton" Grid.Column="2" Style="{StaticResource CompactButtonStyle}"
+                                HorizontalAlignment="Right" Click="OnSignOutClicked" Content="Sign out" />
+                    </Grid>
+                </Border>
+
+                <TextBlock x:Name="StatusText" TextWrapping="Wrap" Style="{StaticResource CaptionMutedTextStyle}" Margin="4,0" />
             </StackPanel>
-        </StackPanel>
-
-        <StackPanel Grid.Row="3" x:Name="SubscriptionPanel" Spacing="8" Visibility="Collapsed">
-            <Button x:Name="CheckoutButton" Style="{ThemeResource AccentButtonStyle}"
-                    Click="OnCheckoutClicked" Content="Subscribe with Stripe" />
-            <Button x:Name="PortalButton" Click="OnPortalClicked" Content="Manage subscription" />
-            <Button x:Name="SignOutButton" Click="OnSignOutClicked" Content="Sign out" />
-        </StackPanel>
-
-        <TextBlock Grid.Row="4" x:Name="StatusText" TextWrapping="Wrap"
-                   Style="{ThemeResource CaptionTextBlockStyle}" />
+        </ScrollViewer>
     </Grid>
 </Window>

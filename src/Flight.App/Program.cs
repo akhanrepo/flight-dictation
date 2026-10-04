@@ -13,6 +13,11 @@ namespace Flight.App;
 /// </summary>
 public static class Program
 {
+    private const int AsfwAny = -1;
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool AllowSetForegroundWindow(int processId);
+
     /// <summary>This copy's single-instance gate; App listens on it to come forward.</summary>
     public static SingleInstanceGate? Instance { get; private set; }
 
@@ -27,6 +32,10 @@ public static class Program
         using var instance = new SingleInstanceGate();
         if (!instance.TryAcquire())
         {
+            // This launch came from the user, so it may hand foreground
+            // rights on; otherwise Windows keeps the running copy's Settings
+            // window behind whatever is in front.
+            AllowSetForegroundWindow(AsfwAny);
             instance.SignalExisting();
             return;
         }

@@ -22,8 +22,9 @@ public sealed partial class AccountWindow : Window
         _billing = billing;
         _entitlement = entitlement;
         InitializeComponent();
-        AppWindow.SetIcon(Platform.AppIcons.App);
         Title = "Flight account";
+        TitleLogo.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(Platform.AppIcons.LogoPng));
+        Platform.WindowChrome.Apply(this, TitleBar, widthDip: 420, heightDip: 480);
         Refresh();
     }
 
