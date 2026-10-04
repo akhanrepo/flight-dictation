@@ -19,6 +19,7 @@ using Flight.Core.Security;
 using Flight.Core.Settings;
 using Flight.Core.Startup;
 using Flight.Core.Stt;
+using Flight.Core.Toast;
 using Flight.Core.Tools;
 using Flight.Core.Tray;
 using Flight.Core.Updates;
@@ -44,6 +45,8 @@ public partial class App : Application, IShellActions
     public App()
     {
         InitializeComponent();
+        UnhandledException += (_, e) => ErrorLog.Write("Unhandled UI exception", e.Exception);
+        TaskScheduler.UnobservedTaskException += (_, e) => ErrorLog.Write("Unobserved task exception", e.Exception);
         Host = AppHost.Build(services =>
         {
             services.AddSingleton<IPushToTalkHotkey, LowLevelKeyboardHook>();
@@ -64,17 +67,47 @@ public partial class App : Application, IShellActions
             services.AddSingleton<IClipboardWriter, WindowsClipboardWriter>();
             services.AddSingleton(sp => new HttpModelStore(sp.GetRequiredService<FlightOptions>(), new HttpClient()));
             services.AddSingleton<IModelStore>(sp => sp.GetRequiredService<HttpModelStore>());
-            services.AddSingleton<DeferredDictationUi>();
-            services.AddSingleton<IDictationUi>(sp => sp.GetRequiredService<DeferredDictationUi>());
+            // The toast's view model (ToastPresenter) is AppHost's default
+            // IDictationUi; the window renders it.
+            services.AddSingleton<IForegroundWindow, ForegroundWindow>();
         });
     }
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
+        try
+        {
+            await LaunchAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Write("Startup failed", ex);
+            throw;
+        }
+    }
+
+    private async Task LaunchAsync()
+    {
         _dispatcher = DispatcherQueue.GetForCurrentThread();
-        _window = new DictationToastWindow();
-        var ui = new DictationUiPresenter(_window, _dispatcher);
-        Host.Services.GetRequiredService<DeferredDictationUi>().Inner = ui;
+        var ui = Host.Services.GetRequiredService<ToastPresenter>();
+        _window = new DictationToastWindow(
+            ui,
+            Host.Services.GetRequiredService<FocusReturn>(),
+            Host.Services.GetRequiredService<IToastPositionStore>());
+
+        // View changes arrive from the hotkey hook and background tasks; the
+        // window renders on the UI thread.
+        ui.Changed += view =>
+        {
+            if (_dispatcher.HasThreadAccess)
+            {
+                _window.Render(view);
+            }
+            else
+            {
+                _dispatcher.TryEnqueue(() => _window.Render(view));
+            }
+        };
 
         _orchestrator = Host.Services.GetRequiredService<DictationOrchestrator>();
         _window.Orchestrator = _orchestrator;
@@ -218,7 +251,7 @@ public partial class App : Application, IShellActions
     /// machine. Results land in the toast (confirm copies them) and in
     /// benchmark-results.txt under the data directory.
     /// </summary>
-    private async Task RunBenchmarkAsync(DictationUiPresenter ui)
+    private async Task RunBenchmarkAsync(ToastPresenter ui)
     {
         ui.ShowProcessing();
         var cleaner = Host.Services.GetRequiredService<ITextCleaner>();

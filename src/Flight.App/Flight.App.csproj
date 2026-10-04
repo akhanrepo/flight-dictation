@@ -38,6 +38,7 @@
     <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Window, tray-state and notification icons, loaded from Assets\ at runtime (AppIcons) -->
     <Content Include="..\..\assets\brand\*.ico" Link="Assets\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\brand\png\flight-32.png" Link="Assets\flight-32.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

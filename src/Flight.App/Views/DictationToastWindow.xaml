@@ -3,44 +3,83 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Flight">
-    <Grid Padding="20,16" KeyDown="OnKeyDown" Background="{ThemeResource LayerFillColorDefaultBrush}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock x:Name="StatusText" Style="{ThemeResource BodyStrongTextBlockStyle}" Text="Flight" />
-                <ProgressRing x:Name="Spinner" Width="18" Height="18" IsActive="False" Visibility="Collapsed" />
-            </StackPanel>
-            <Button x:Name="SettingsButton" HorizontalAlignment="Right" Padding="6,2"
-                    Click="OnSettingsClicked" Content="Settings" />
-        </Grid>
+    <!-- Renders a Core ToastView (feature #7). The whole surface drags the
+         window; buttons and the text are click-through regions. -->
+    <Grid x:Name="Root" KeyDown="OnKeyDown" Background="Transparent">
+        <Grid.Resources>
+            <Storyboard x:Name="ListeningPulse" RepeatBehavior="Forever" AutoReverse="True">
+                <DoubleAnimation Storyboard.TargetName="ListeningDot" Storyboard.TargetProperty="Opacity"
+                                 From="1" To="0.35" Duration="0:0:0.7" />
+            </Storyboard>
+            <Storyboard x:Name="FadeOut">
+                <DoubleAnimation Storyboard.TargetName="Root" Storyboard.TargetProperty="Opacity"
+                                 From="1" To="0" Duration="0:0:0.2" />
+            </Storyboard>
+        </Grid.Resources>
 
-        <ScrollViewer Grid.Row="1" Margin="0,10,0,10" MaxHeight="200">
-            <StackPanel Spacing="8">
-                <TextBlock x:Name="PreviewText" TextWrapping="Wrap" Visibility="Collapsed" IsTextSelectionEnabled="True" />
-                <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Visibility="Collapsed"
-                           Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
-                <ProgressBar x:Name="DownloadBar" Visibility="Collapsed" Minimum="0" Maximum="100" />
-                <TextBlock x:Name="UpgradeText" TextWrapping="Wrap" Visibility="Collapsed" />
-            </StackPanel>
-        </ScrollViewer>
+        <StackPanel x:Name="ContentPanel" Padding="16,12" Spacing="8" VerticalAlignment="Top">
 
-        <StackPanel x:Name="UpgradeButtons" Grid.Row="2" Orientation="Horizontal" Spacing="8"
-                    HorizontalAlignment="Right" Visibility="Collapsed">
-            <Button x:Name="UpgradeButton" Style="{ThemeResource AccentButtonStyle}" Click="OnUpgradeClicked"
-                    Content="Subscribe" />
-            <Button Click="OnDismissClicked" Content="Keep using local (Esc)" />
-        </StackPanel>
+            <!-- Header: indicator · title (and pill hint) · icon buttons -->
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-        <StackPanel x:Name="PreviewButtons" Grid.Row="2" Orientation="Horizontal" Spacing="8"
-                    HorizontalAlignment="Right" Visibility="Collapsed">
-            <Button x:Name="ConfirmButton" Style="{ThemeResource AccentButtonStyle}" Click="OnConfirmClicked"
-                    Content="Copy (Enter)" />
-            <Button x:Name="DismissButton" Click="OnDismissClicked" Content="Dismiss (Esc)" />
+                <Grid Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center">
+                    <Ellipse x:Name="ListeningDot" Width="10" Height="10" Fill="#EF4444" Visibility="Collapsed" />
+                    <ProgressRing x:Name="Spinner" Width="16" Height="16" IsActive="False" Visibility="Collapsed" />
+                    <Image x:Name="Logo" Width="16" Height="16" Visibility="Collapsed" />
+                    <FontIcon x:Name="ToneIcon" FontSize="14" Visibility="Collapsed" />
+                </Grid>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock x:Name="TitleText" Style="{StaticResource BodyStrongTextBlockStyle}"
+                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    <TextBlock x:Name="PillHintText" Style="{StaticResource CaptionMutedTextStyle}"
+                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
+                </StackPanel>
+
+                <StackPanel x:Name="HeaderButtons" Grid.Column="2" Orientation="Horizontal" Spacing="2"
+                            VerticalAlignment="Center" Visibility="Collapsed">
+                    <Button x:Name="SettingsButton" Style="{StaticResource IconButtonStyle}"
+                            ToolTipService.ToolTip="Settings" AutomationProperties.Name="Settings"
+                            Click="OnSettingsClicked">
+                        <FontIcon Glyph="&#xE713;" FontSize="14" />
+                    </Button>
+                    <Button x:Name="CloseButton" Style="{StaticResource IconButtonStyle}"
+                            ToolTipService.ToolTip="Dismiss (Esc)" AutomationProperties.Name="Dismiss"
+                            Click="OnDismissClicked">
+                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <ProgressBar x:Name="DownloadBar" Minimum="0" Maximum="100" Visibility="Collapsed" />
+
+            <ScrollViewer x:Name="BodyScroller" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+                <TextBlock x:Name="BodyText" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                           LineHeight="20" Margin="0,0,4,0" />
+            </ScrollViewer>
+
+            <!-- Footer: shortcut hint left, compact actions right -->
+            <Grid x:Name="Footer" ColumnSpacing="8" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="HintText" Style="{StaticResource CaptionMutedTextStyle}" VerticalAlignment="Center"
+                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="PrimaryButton" Style="{StaticResource CompactAccentButtonStyle}"
+                            Click="OnPrimaryClicked" Visibility="Collapsed" />
+                    <Button x:Name="SecondaryButton" Style="{StaticResource CompactButtonStyle}"
+                            Click="OnSecondaryClicked" Visibility="Collapsed" />
+                </StackPanel>
+            </Grid>
         </StackPanel>
     </Grid>
 </Window>

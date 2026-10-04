@@ -9,6 +9,9 @@ public static class AppIcons
 
     public static string App => Path.Combine(Directory, "flight.ico");
 
+    /// <summary>The 32-px mark, shown at 16 DIPs in the toast header (sharp up to 200%).</summary>
+    public static string LogoPng => Path.Combine(Directory, "flight-32.png");
+
     public static string For(TrayIconKind kind) => kind switch
     {
         TrayIconKind.Listening => Path.Combine(Directory, "flight-listening.ico"),
