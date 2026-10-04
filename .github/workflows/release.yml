@@ -37,7 +37,7 @@ jobs:
       - name: Pack installer
         run: >
           vpk pack --packId ${{ env.PACK_ID }} --packVersion ${{ env.VERSION }}
-          --packDir publish --mainExe Flight.App.exe --packTitle Flight
+          --packDir publish --mainExe Flight.App.exe --packTitle Flight --icon assets/brand/flight.ico
       - uses: actions/upload-artifact@v4
         with:
           name: flight-${{ env.VERSION }}

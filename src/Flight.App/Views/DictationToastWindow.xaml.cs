@@ -28,6 +28,7 @@ public sealed partial class DictationToastWindow : Window
     public DictationToastWindow()
     {
         InitializeComponent();
+        AppWindow.SetIcon(Platform.AppIcons.App);
         ConfigureAppWindow();
     }
 

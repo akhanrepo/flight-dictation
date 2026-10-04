@@ -56,6 +56,33 @@ public class BrandAssetsTests
         Assert.Equal(declared, ReadIcoFrameSizes(Brand("flight.ico")).Order().ToArray());
     }
 
+    // The exe (and so the Start menu shortcut) carries the logo, and the
+    // window/tray icons are shipped beside it.
+    [Fact]
+    public void Brand_AppProjectUsesTheLogo()
+    {
+        var projectDir = RepoPaths.Combine("src", "Flight.App");
+        var project = System.Xml.Linq.XDocument.Load(Path.Combine(projectDir, "Flight.App.csproj"));
+
+        var icon = project.Descendants("ApplicationIcon").Single().Value;
+        Assert.True(File.Exists(Path.GetFullPath(Path.Combine(projectDir, icon))), $"ApplicationIcon {icon} not found");
+
+        var shipped = project.Descendants("Content")
+            .Select(c => (string?)c.Attribute("Include"))
+            .Any(include => include is not null && include.Contains("assets") && include.EndsWith(".ico"));
+        Assert.True(shipped, "the .ico files must be copied to the output for windows and the tray");
+    }
+
+    [Theory]
+    [InlineData("scripts", "pack-local.ps1")]
+    [InlineData(".github", "workflows", "release.yml")]
+    public void Brand_InstallerIsBuiltWithTheLogo(params string[] path)
+    {
+        var script = File.ReadAllText(RepoPaths.Combine(path));
+
+        Assert.Matches(@"--icon\s+\S*flight\.ico", script);
+    }
+
     /// <summary>Reads frame sizes from an ICO directory (ICONDIR + ICONDIRENTRY).</summary>
     internal static int[] ReadIcoFrameSizes(string path)
     {

@@ -18,5 +18,5 @@ $env:DOTNET_ROLL_FORWARD = 'Major'
 # Pack id must not be "Flight": uninstall deletes %LOCALAPPDATA%\<packId>,
 # and %LOCALAPPDATA%\Flight holds the database and models.
 vpk pack --packId FlightApp --packVersion $Version --packDir $publish `
-    --mainExe Flight.App.exe --packTitle Flight --outputDir "$root\artifacts\releases"
+    --mainExe Flight.App.exe --packTitle Flight --icon "$root\assets\brand\flight.ico" --outputDir "$root\artifacts\releases"
 if ($LASTEXITCODE) { throw "vpk pack failed" }

@@ -22,6 +22,7 @@ public sealed partial class AccountWindow : Window
         _billing = billing;
         _entitlement = entitlement;
         InitializeComponent();
+        AppWindow.SetIcon(Platform.AppIcons.App);
         Title = "Flight account";
         Refresh();
     }

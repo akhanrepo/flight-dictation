@@ -17,8 +17,10 @@ using Flight.Core.Llm;
 using Flight.Core.Models;
 using Flight.Core.Security;
 using Flight.Core.Settings;
+using Flight.Core.Startup;
 using Flight.Core.Stt;
 using Flight.Core.Tools;
+using Flight.Core.Tray;
 using Flight.Core.Updates;
 using Flight.Core.Vocabulary;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,10 +30,14 @@ using Microsoft.UI.Xaml;
 
 namespace Flight.App;
 
-public partial class App : Application
+public partial class App : Application, IShellActions
 {
     private DictationToastWindow? _window;
     private DictationOrchestrator? _orchestrator;
+    private NotifyIcon? _tray;
+    private TrayPresenter? _trayPresenter;
+    private DispatcherQueue? _dispatcher;
+    private bool _quitting;
 
     public IHost Host { get; }
 
@@ -48,6 +54,8 @@ public partial class App : Application
             services.AddSingleton<ISecretStore, DpapiSecretStore>();
             services.AddSingleton<IUrlLauncher, BrowserUrlLauncher>();
             services.AddSingleton<IAppUpdater, VelopackAppUpdater>();
+            services.AddSingleton<IStartupRegistration, RegistryStartupRegistration>();
+            services.AddSingleton<IShellActions>(this);
             // Real embeddings come from the same loaded GGUF, with the
             // model-free generator as the fallback path.
             services.AddSingleton<IEmbeddingGenerator>(sp => new LlamaEmbeddingGenerator(
@@ -63,8 +71,9 @@ public partial class App : Application
 
     protected override async void OnLaunched(LaunchActivatedEventArgs args)
     {
+        _dispatcher = DispatcherQueue.GetForCurrentThread();
         _window = new DictationToastWindow();
-        var ui = new DictationUiPresenter(_window, DispatcherQueue.GetForCurrentThread());
+        var ui = new DictationUiPresenter(_window, _dispatcher);
         Host.Services.GetRequiredService<DeferredDictationUi>().Inner = ui;
 
         _orchestrator = Host.Services.GetRequiredService<DictationOrchestrator>();
@@ -72,16 +81,29 @@ public partial class App : Application
         _window.OpenSettings = ShowSettings;
         _window.StartUpgrade = ShowAccount;
 
+        // The tray comes first, so Flight is visibly running (and quittable)
+        // even during the first-run model download.
+        StartTray();
+        if (Program.Instance is { } instance)
+        {
+            instance.ActivationRequested += () => _dispatcher.TryEnqueue(ShowSettings);
+        }
+
         try
         {
             // First run: models aren't bundled; download with visible progress.
             var modelStore = Host.Services.GetRequiredService<IModelStore>();
             if (!modelStore.ModelsArePresent)
             {
-                var progress = new Progress<ModelDownloadProgress>(ui.ShowModelDownloadProgress);
+                var progress = new Progress<ModelDownloadProgress>(p =>
+                {
+                    ui.ShowModelDownloadProgress(p);
+                    _trayPresenter?.ReportModelDownload(p);
+                });
                 await modelStore.EnsureModelsAsync(progress);
                 ui.Hide();
             }
+            _trayPresenter?.ModelsReady();
         }
         catch (Exception ex)
         {
@@ -99,6 +121,72 @@ public partial class App : Application
 
         // Background; applies on exit and never throws.
         _ = Host.Services.GetRequiredService<UpdateCheck>().RunAsync();
+    }
+
+    private void StartTray()
+    {
+        _trayPresenter = Host.Services.GetRequiredService<TrayPresenter>();
+        _tray = new NotifyIcon(AppIcons.For);
+        _tray.Activated += _trayPresenter.Activate;
+        _tray.MenuOpening += _trayPresenter.Refresh;
+        _tray.CommandInvoked += _trayPresenter.Execute;
+
+        // Presenter changes arrive from the hotkey hook and background tasks;
+        // the icon is only touched on the UI thread.
+        _trayPresenter.Changed += state =>
+        {
+            if (_dispatcher!.HasThreadAccess) // set before StartTray runs
+            {
+                _tray?.Render(state);
+            }
+            else
+            {
+                _dispatcher.TryEnqueue(() => _tray?.Render(state));
+            }
+        };
+        _tray.Render(_trayPresenter.State);
+
+        if (Host.Services.GetRequiredService<FirstRunNotice>().TryClaim())
+        {
+            _tray.ShowNotification(FirstRunNotice.Title, FirstRunNotice.Message);
+        }
+    }
+
+    void IShellActions.OpenSettings() => ShowSettings();
+
+    void IShellActions.OpenAccount() => ShowAccount();
+
+    async void IShellActions.Quit()
+    {
+        if (await ShutDownAsync())
+        {
+            Exit();
+        }
+    }
+
+    async void IShellActions.RestartToUpdate()
+    {
+        if (await ShutDownAsync())
+        {
+            // Exits the process, applies the update, and relaunches.
+            Host.Services.GetRequiredService<IAppUpdater>().RestartToApply();
+        }
+    }
+
+    /// <returns>False when a shutdown is already under way.</returns>
+    private async Task<bool> ShutDownAsync()
+    {
+        if (_quitting)
+        {
+            return false;
+        }
+        _quitting = true;
+
+        await Host.Services.GetRequiredService<ShutdownCoordinator>().ShutdownAsync();
+        _trayPresenter?.Dispose();
+        _tray?.Dispose(); // removes the icon, so no ghost is left in the tray
+        _tray = null;
+        return true;
     }
 
     private SettingsWindow? _settingsWindow;

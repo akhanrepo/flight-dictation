@@ -24,6 +24,7 @@ public sealed partial class SettingsWindow : Window
         _settings = settings;
         _secrets = secrets;
         InitializeComponent();
+        AppWindow.SetIcon(Platform.AppIcons.App);
         Title = "Flight settings";
         Load();
     }
