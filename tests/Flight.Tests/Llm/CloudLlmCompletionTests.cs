@@ -184,7 +184,7 @@ public class CloudLlmCompletionTests
         Assert.Equal("sk-secret", secrets.Get(SecretNames.CloudLlmApiKey));
 
         // Credentials must not have a home in plain options, which are plain
-        // config. PushToTalkVirtualKey is a key code, not a credential.
+        // config.
         Assert.DoesNotContain(
             typeof(FlightOptions).GetProperties(),
             property => property.Name.Contains("ApiKey", StringComparison.OrdinalIgnoreCase)

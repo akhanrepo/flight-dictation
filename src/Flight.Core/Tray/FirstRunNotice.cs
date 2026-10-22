@@ -14,7 +14,8 @@ public sealed class FirstRunNotice
 
     public const string Title = "Flight is running";
 
-    public const string Message = "Find it in the notification area. Hold Right Alt to dictate.";
+    public static string MessageFor(Input.Hotkey hotkey) =>
+        $"Find it in the notification area. Hold {hotkey} to dictate.";
 
     /// <returns>True exactly once; the caller shows the notice then.</returns>
     public bool TryClaim()

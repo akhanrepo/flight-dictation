@@ -12,10 +12,10 @@ Lets the user choose the push-to-talk key in Settings instead of the fixed Right
 - The default hotkey is Right Alt, so existing installs behave exactly as before, including databases created before this feature existed.
 - The hotkey is stored in the settings table and survives a restart.
 - Hotkeys round-trip through their text form ("Right Alt", "Ctrl+Win", "Ctrl+Shift+Space").
-- Rejected hotkeys: a bare letter, digit, Space, Enter, Esc, Tab or Backspace; a bare left-hand modifier; more than four keys. Allowed alone: F1–F24 and right-hand modifiers.
+- Rejected hotkeys: a bare letter, digit, Space, Enter, Esc, Tab, Backspace or other typing key; a bare left-hand modifier; Shift plus a typing key; anything containing Esc (it cancels recording); more than four keys. Allowed alone: F1–F24, Caps Lock, Scroll Lock, Pause and right-hand modifiers.
 - Pressed fires once when every key of the hotkey is held, in any order. Auto-repeat doesn't fire it again. An extra non-modifier key held at the same time prevents the match.
 - Released fires when any key of the hotkey is released.
-- A non-modifier key in the hotkey is swallowed while it is part of the match, so Ctrl+Space never types a space. Modifier keys always pass through to other apps.
+- A non-modifier key in the hotkey is swallowed while it is part of the match, so Ctrl+Space never types a space. Modifier keys always pass through to other apps. A key-up is swallowed only if its key-down was, so no key is ever left looking stuck.
 - Changing the hotkey applies to the next press without a restart. A dictation already in progress still ends when its original keys are released.
 - Recording a hotkey captures the combination held at its peak, completes on the first key-up, can be cancelled with Esc, and reports invalid combinations without saving them. While recording, the key events don't start a dictation.
 - The tray tooltip and the first-run notice name the configured key.

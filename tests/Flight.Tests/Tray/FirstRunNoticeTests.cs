@@ -28,4 +28,14 @@ public class FirstRunNoticeTests
 
         Assert.False(new FirstRunNotice(_options).TryClaim());
     }
+
+    // Feature #8 criterion: the notice names the configured key
+    [Fact]
+    public void FirstRunNotice_NamesTheHotkey()
+    {
+        Assert.True(Flight.Core.Input.Hotkey.TryParse("Ctrl+Win", out var hotkey));
+
+        Assert.Contains("Hold Ctrl+Win to dictate", FirstRunNotice.MessageFor(hotkey));
+        Assert.Contains("Hold Right Alt to dictate", FirstRunNotice.MessageFor(Flight.Core.Input.Hotkey.Default));
+    }
 }

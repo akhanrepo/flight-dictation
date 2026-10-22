@@ -1,5 +1,6 @@
 using Flight.Core.Dictation;
 using Flight.Core.Models;
+using Flight.Core.Settings;
 using Flight.Core.Startup;
 using Flight.Core.Updates;
 
@@ -23,6 +24,7 @@ public sealed class TrayPresenter : IDisposable
     private readonly UpdateCheck _updates;
     private readonly IStartupRegistration _startup;
     private readonly IShellActions _shell;
+    private readonly ISettingsStore _settings;
 
     private bool _modelsReady;
     private ModelDownloadProgress? _download;
@@ -31,16 +33,20 @@ public sealed class TrayPresenter : IDisposable
         DictationOrchestrator orchestrator,
         UpdateCheck updates,
         IStartupRegistration startup,
-        IShellActions shell)
+        IShellActions shell,
+        ISettingsStore settings)
     {
         _orchestrator = orchestrator;
         _updates = updates;
         _startup = startup;
         _shell = shell;
+        _settings = settings;
 
         _orchestrator.StateChanged += OnStateChanged;
         _orchestrator.PausedChanged += OnPausedChanged;
         _updates.Staged += OnUpdateStaged;
+        // The status line names the push-to-talk key, which Settings can change.
+        _settings.Changed += OnSettingsChanged;
 
         State = Build();
     }
@@ -125,6 +131,7 @@ public sealed class TrayPresenter : IDisposable
         _orchestrator.StateChanged -= OnStateChanged;
         _orchestrator.PausedChanged -= OnPausedChanged;
         _updates.Staged -= OnUpdateStaged;
+        _settings.Changed -= OnSettingsChanged;
     }
 
     private void OnStateChanged(DictationState _) => Refresh();
@@ -132,6 +139,8 @@ public sealed class TrayPresenter : IDisposable
     private void OnPausedChanged(bool _) => Refresh();
 
     private void OnUpdateStaged(string _) => Refresh();
+
+    private void OnSettingsChanged(FlightSettings _) => Refresh();
 
     private TrayState Build()
     {
@@ -175,8 +184,8 @@ public sealed class TrayPresenter : IDisposable
             DictationState.Capturing => "Listening…",
             DictationState.Processing => "Processing…",
             DictationState.Error => "Something went wrong — see the indicator",
-            _ when _orchestrator.IsPaused => "Paused — Right Alt is off",
-            _ => "Ready — hold Right Alt to dictate",
+            _ when _orchestrator.IsPaused => $"Paused — {_settings.Current.Hotkey} is off",
+            _ => $"Ready — hold {_settings.Current.Hotkey} to dictate",
         };
     }
 

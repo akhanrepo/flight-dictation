@@ -18,9 +18,6 @@ public class FlightOptions
 
     public string ModelsDirectory => Path.Combine(DataDirectory, "models");
 
-    /// <summary>Virtual-key code of the push-to-talk key. VK_RMENU = Right Alt.</summary>
-    public int PushToTalkVirtualKey { get; set; } = 0xA5;
-
     /// <summary>
     /// Captures shorter than this are treated as an accidental tap of the
     /// hotkey: nothing runs and nothing is shown.

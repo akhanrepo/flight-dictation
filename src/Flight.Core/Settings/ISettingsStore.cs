@@ -9,5 +9,8 @@ public interface ISettingsStore
 {
     FlightSettings Current { get; }
 
+    /// <summary>Raised after every successful update, on the updating thread.</summary>
+    event Action<FlightSettings>? Changed;
+
     Task<FlightSettings> UpdateAsync(FlightSettings settings, CancellationToken cancellationToken = default);
 }

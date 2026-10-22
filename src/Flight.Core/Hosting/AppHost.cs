@@ -1,4 +1,5 @@
 using Flight.Core.Dictation;
+using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Settings;
 using Flight.Core.Storage;
@@ -45,6 +46,11 @@ public static class AppHost
         builder.Services.AddSingleton<IDictationSessionRepository, SqliteDictationSessionRepository>();
         builder.Services.AddSingleton<ISettingsStore, SqliteSettingsStore>();
         builder.Services.AddSingleton<DictationOrchestrator>();
+
+        // Push-to-talk (feature #8) over the shell's IKeyboardHook. The same
+        // instance records new hotkeys for the Settings window.
+        builder.Services.AddSingleton<PushToTalkHotkey>();
+        builder.Services.AddSingleton<IPushToTalkHotkey>(sp => sp.GetRequiredService<PushToTalkHotkey>());
 
         // The toast's view model is the default dictation UI (feature #7);
         // the window only renders ToastPresenter.View.

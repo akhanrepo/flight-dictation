@@ -19,7 +19,28 @@
         <ScrollViewer Grid.Row="1">
             <StackPanel Padding="16,4,16,16" Spacing="8">
 
-                <TextBlock Text="Language" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="4,4,0,0" />
+                <TextBlock Text="Dictation" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="4,4,0,0" />
+
+                <Border Style="{StaticResource SettingsCardStyle}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Push-to-talk key" />
+                            <TextBlock Text="Hold to dictate, release to finish" Style="{StaticResource CaptionMutedTextStyle}" />
+                        </StackPanel>
+                        <Button x:Name="HotkeyButton" Grid.Column="1" MinWidth="160" VerticalAlignment="Center"
+                                Click="OnHotkeyClicked"
+                                ToolTipService.ToolTip="Click, then press the keys you want"
+                                AutomationProperties.Name="Push-to-talk key. Click, then press the keys you want" />
+                    </Grid>
+                </Border>
+
+                <TextBlock x:Name="HotkeyStatusText" TextWrapping="Wrap" Style="{StaticResource CaptionMutedTextStyle}" Margin="4,0" />
+
+                <TextBlock Text="Language" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="4,12,0,0" />
 
                 <Border Style="{StaticResource SettingsCardStyle}">
                     <Grid ColumnSpacing="12">

@@ -17,6 +17,7 @@ public class TrayPresenterTests
     private readonly FakeAppUpdater _updater = new();
     private readonly FakeStartupRegistration _startup = new();
     private readonly FakeShellActions _shell = new();
+    private readonly FakeSettingsStore _settings = new();
     private readonly DictationOrchestrator _orchestrator;
     private readonly UpdateCheck _updates;
 
@@ -25,14 +26,14 @@ public class TrayPresenterTests
         _orchestrator = new DictationOrchestrator(
             _hotkey, _capturer, new FakeSpeechToText(), new FakeTextCleaner(), new FakeClipboardWriter(),
             new InMemorySessionRepository(), new FakeDictationUi(), new FakeVocabularyLearningQueue(),
-            new FakeSettingsStore(), new FlightOptions(), NullLogger<DictationOrchestrator>.Instance);
+            _settings, new FlightOptions(), NullLogger<DictationOrchestrator>.Instance);
         _orchestrator.Start();
         _updates = new UpdateCheck(_updater, NullLogger<UpdateCheck>.Instance);
     }
 
     private TrayPresenter CreateReady()
     {
-        var presenter = new TrayPresenter(_orchestrator, _updates, _startup, _shell);
+        var presenter = new TrayPresenter(_orchestrator, _updates, _startup, _shell, _settings);
         presenter.ModelsReady();
         return presenter;
     }
@@ -70,6 +71,18 @@ public class TrayPresenterTests
             seen.Select(s => s.Icon));
     }
 
+    // Feature #8 criterion: the tray names the configured key, and follows a change
+    [Fact]
+    public async Task Tray_NamesTheConfiguredHotkey()
+    {
+        var presenter = CreateReady();
+        Assert.True(Flight.Core.Input.Hotkey.TryParse("Ctrl+Win", out var hotkey));
+
+        await _settings.UpdateAsync(_settings.Current with { Hotkey = hotkey });
+
+        Assert.Equal("Ready — hold Ctrl+Win to dictate", presenter.State.StatusLine);
+    }
+
     [Fact]
     public void Tray_ShowsPausedWithTheDimmedIcon()
     {
@@ -100,7 +113,7 @@ public class TrayPresenterTests
     [Fact]
     public void Tray_ShowsModelDownloadProgressUntilReady()
     {
-        var presenter = new TrayPresenter(_orchestrator, _updates, _startup, _shell);
+        var presenter = new TrayPresenter(_orchestrator, _updates, _startup, _shell, _settings);
         Assert.Equal("Starting…", presenter.State.StatusLine);
 
         presenter.ReportModelDownload(new ModelDownloadProgress("model.gguf", 42, 100));
@@ -113,7 +126,7 @@ public class TrayPresenterTests
     [Fact]
     public void Tray_TooltipStaysWithinTheWin32Limit()
     {
-        var presenter = new TrayPresenter(_orchestrator, _updates, _startup, _shell);
+        var presenter = new TrayPresenter(_orchestrator, _updates, _startup, _shell, _settings);
         presenter.ReportModelDownload(new ModelDownloadProgress(new string('x', 500), 1, null));
 
         Assert.True(presenter.State.Tooltip.Length <= TrayPresenter.MaxTooltipLength);

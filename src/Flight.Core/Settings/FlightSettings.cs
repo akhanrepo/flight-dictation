@@ -1,3 +1,4 @@
+using Flight.Core.Input;
 using Flight.Core.Languages;
 using Flight.Core.Llm;
 
@@ -22,6 +23,9 @@ public record FlightSettings
     /// </summary>
     public LlmMode LlmMode { get; init; } = LlmMode.Local;
 
+    /// <summary>The push-to-talk key or combination (feature #8). Right Alt by default.</summary>
+    public Hotkey Hotkey { get; init; } = Hotkey.Default;
+
     /// <summary>True when the pipeline should translate rather than only clean up.</summary>
     public bool IsTranslating =>
         !string.Equals(SourceLanguage, TargetLanguage, StringComparison.OrdinalIgnoreCase);
@@ -36,6 +40,11 @@ public record FlightSettings
         if (!SupportedLanguages.IsSupported(TargetLanguage))
         {
             throw new ArgumentException($"Unsupported target language '{TargetLanguage}'.");
+        }
+
+        if (Hotkey.Validate() is { } problem)
+        {
+            throw new ArgumentException($"Unusable push-to-talk key '{Hotkey}': {problem}");
         }
     }
 }

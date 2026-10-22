@@ -46,7 +46,9 @@ public partial class App : Application, IShellActions
         TaskScheduler.UnobservedTaskException += (_, e) => ErrorLog.Write("Unobserved task exception", e.Exception);
         Host = AppHost.Build(services =>
         {
-            services.AddSingleton<IPushToTalkHotkey, LowLevelKeyboardHook>();
+            // The raw keyboard feed; Core's PushToTalkHotkey (registered by
+            // AppHost) turns it into push-to-talk.
+            services.AddSingleton<IKeyboardHook, LowLevelKeyboardHook>();
             services.AddSingleton<IAudioCapturer, WasapiAudioCapturer>();
             services.AddSingleton<ISpeechToText, WhisperSpeechToText>();
             services.AddSingleton<LlamaCompletion>();
@@ -173,7 +175,9 @@ public partial class App : Application, IShellActions
 
         if (Host.Services.GetRequiredService<FirstRunNotice>().TryClaim())
         {
-            _tray.ShowNotification(FirstRunNotice.Title, FirstRunNotice.Message);
+            _tray.ShowNotification(
+                FirstRunNotice.Title,
+                FirstRunNotice.MessageFor(Host.Services.GetRequiredService<ISettingsStore>().Current.Hotkey));
         }
     }
 
@@ -221,7 +225,8 @@ public partial class App : Application, IShellActions
         {
             _settingsWindow = new SettingsWindow(
                 Host.Services.GetRequiredService<ISettingsStore>(),
-                Host.Services.GetRequiredService<ISecretStore>());
+                Host.Services.GetRequiredService<ISecretStore>(),
+                Host.Services.GetRequiredService<PushToTalkHotkey>());
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         }
         _settingsWindow.Activate();

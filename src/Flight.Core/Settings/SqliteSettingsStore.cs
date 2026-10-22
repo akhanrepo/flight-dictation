@@ -1,3 +1,4 @@
+using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Storage;
 
@@ -22,6 +23,8 @@ public class SqliteSettingsStore : ISettingsStore
 
     public FlightSettings Current => Volatile.Read(ref _current);
 
+    public event Action<FlightSettings>? Changed;
+
     public Task<FlightSettings> UpdateAsync(FlightSettings settings, CancellationToken cancellationToken = default)
     {
         settings.Validate();
@@ -32,6 +35,7 @@ public class SqliteSettingsStore : ISettingsStore
             Volatile.Write(ref _current, settings);
         }
 
+        Changed?.Invoke(settings);
         return Task.FromResult(settings);
     }
 
@@ -40,7 +44,7 @@ public class SqliteSettingsStore : ISettingsStore
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT source_language, target_language, llm_mode
+            SELECT source_language, target_language, llm_mode, hotkey
             FROM settings
             WHERE id = 1;
             """;
@@ -57,6 +61,10 @@ public class SqliteSettingsStore : ISettingsStore
             SourceLanguage = reader.GetString(0),
             TargetLanguage = reader.GetString(1),
             LlmMode = LlmModes.Parse(reader.GetString(2)),
+            // Rows from before feature #8 have no hotkey: Right Alt, as before.
+            Hotkey = !reader.IsDBNull(3) && Hotkey.TryParse(reader.GetString(3), out var hotkey) && hotkey.Validate() is null
+                ? hotkey
+                : Hotkey.Default,
         };
     }
 
@@ -65,16 +73,18 @@ public class SqliteSettingsStore : ISettingsStore
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO settings (id, source_language, target_language, llm_mode)
-            VALUES (1, $source, $target, $llmMode)
+            INSERT INTO settings (id, source_language, target_language, llm_mode, hotkey)
+            VALUES (1, $source, $target, $llmMode, $hotkey)
             ON CONFLICT (id) DO UPDATE SET
                 source_language = excluded.source_language,
                 target_language = excluded.target_language,
-                llm_mode = excluded.llm_mode;
+                llm_mode = excluded.llm_mode,
+                hotkey = excluded.hotkey;
             """;
         command.Parameters.AddWithValue("$source", settings.SourceLanguage);
         command.Parameters.AddWithValue("$target", settings.TargetLanguage);
         command.Parameters.AddWithValue("$llmMode", settings.LlmMode.ToStorageValue());
+        command.Parameters.AddWithValue("$hotkey", settings.Hotkey.ToString());
         command.ExecuteNonQuery();
     }
 }

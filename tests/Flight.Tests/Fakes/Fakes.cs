@@ -285,10 +285,13 @@ public sealed class FakeSettingsStore : ISettingsStore
 
     public FlightSettings Current { get; private set; }
 
+    public event Action<FlightSettings>? Changed;
+
     public Task<FlightSettings> UpdateAsync(FlightSettings settings, CancellationToken cancellationToken = default)
     {
         settings.Validate();
         Current = settings;
+        Changed?.Invoke(settings);
         return Task.FromResult(settings);
     }
 }
@@ -376,4 +379,37 @@ public sealed class StubHttpMessageHandler : HttpMessageHandler
 
         return await _handler(request, cancellationToken);
     }
+}
+
+/// <summary>Feeds synthetic key events to whatever the hook was started with.</summary>
+public sealed class FakeKeyboardHook : IKeyboardHook
+{
+    private Func<KeyEvent, bool>? _onKey;
+    private readonly HashSet<int> _down = [];
+
+    public int MenuSuppressions { get; private set; }
+
+    /// <summary>Keys reported down by <see cref="IsKeyDown"/> regardless of events, or not.</summary>
+    public HashSet<int> ForgottenKeys { get; } = [];
+
+    public void Start(Func<KeyEvent, bool> onKey) => _onKey = onKey;
+
+    /// <returns>True when the hotkey logic swallowed the key.</returns>
+    public bool Down(int vk, bool injected = false)
+    {
+        _down.Add(vk);
+        return _onKey!(new KeyEvent(vk, IsDown: true, injected)); // tests Start() before typing
+    }
+
+    public bool Up(int vk, bool injected = false)
+    {
+        _down.Remove(vk);
+        return _onKey!(new KeyEvent(vk, IsDown: false, injected)); // tests Start() before typing
+    }
+
+    public bool IsKeyDown(int virtualKey) => _down.Contains(virtualKey) && !ForgottenKeys.Contains(virtualKey);
+
+    public void SuppressMenuActivation() => MenuSuppressions++;
+
+    public void Dispose() { }
 }

@@ -1,4 +1,6 @@
+using Flight.Core.Input;
 using Flight.Core.Settings;
+using Microsoft.Data.Sqlite;
 using Flight.Core.Storage;
 using Xunit;
 
@@ -81,5 +83,74 @@ public class SqliteSettingsStoreTests : IDisposable
             File.Delete(_databasePath);
         }
         GC.SuppressFinalize(this);
+    }
+
+    // Feature #8 criterion: the hotkey survives a restart
+    [Fact]
+    public async Task Hotkey_Survives_A_Restart()
+    {
+        Assert.True(Hotkey.TryParse("Ctrl+Win", out var hotkey));
+        await CreateStore().UpdateAsync(new FlightSettings { Hotkey = hotkey });
+
+        Assert.Equal(hotkey, CreateStore().Current.Hotkey);
+    }
+
+    [Fact]
+    public void Hotkey_Defaults_To_Right_Alt()
+    {
+        Assert.Equal(Hotkey.Default, CreateStore().Current.Hotkey);
+    }
+
+    // Feature #8 criterion: a database created before the hotkey setting
+    // existed is migrated in place and keeps Right Alt
+    [Fact]
+    public async Task Database_From_Before_Feature8_Is_Migrated_And_Keeps_Right_Alt()
+    {
+        using (var connection = new SqliteConnection($"Data Source={_databasePath}"))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                CREATE TABLE settings (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    source_language TEXT NOT NULL,
+                    target_language TEXT NOT NULL,
+                    llm_mode TEXT NOT NULL DEFAULT 'local'
+                );
+                INSERT INTO settings (id, source_language, target_language, llm_mode) VALUES (1, 'ur', 'en', 'cloud');
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        var store = CreateStore();
+
+        Assert.Equal("ur", store.Current.SourceLanguage);
+        Assert.Equal(Hotkey.Default, store.Current.Hotkey);
+
+        // And the new column is writable.
+        Assert.True(Hotkey.TryParse("F8", out var f8));
+        await store.UpdateAsync(store.Current with { Hotkey = f8 });
+        Assert.Equal(f8, CreateStore().Current.Hotkey);
+    }
+
+    [Fact]
+    public async Task Unusable_Hotkey_Is_Rejected()
+    {
+        Assert.True(Hotkey.TryParse("A", out var bareLetter));
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            CreateStore().UpdateAsync(new FlightSettings { Hotkey = bareLetter }));
+    }
+
+    [Fact]
+    public async Task Update_Raises_Changed()
+    {
+        var store = CreateStore();
+        FlightSettings? seen = null;
+        store.Changed += s => seen = s;
+
+        var updated = await store.UpdateAsync(new FlightSettings { TargetLanguage = "fr" });
+
+        Assert.Same(updated, seen);
     }
 }
