@@ -1,12 +1,14 @@
 name: Release
 
-# Tag vX.Y.Z on main to build the Velopack installer and update package.
-# The output is attached to the workflow run as an artifact; nothing is
-# published. For local testing, scripts/pack-local.ps1 does the same into
-# artifacts\releases (the update feed in appsettings.json).
+# Tag vX.Y.Z on main to test, build the Velopack installer and update
+# package, and publish them as a GitHub Release. Installed copies update
+# from that release (FlightOptions.UpdateFeed is this repository's URL).
 on:
   push:
     tags: ['v*']
+
+permissions:
+  contents: write
 
 env:
   # Not "Flight": Velopack installs to %LOCALAPPDATA%\<packId> and deletes it
@@ -32,12 +34,21 @@ jobs:
           -p:Platform=x64 -p:Version=${{ env.VERSION }} -o publish
       - name: Install vpk
         run: dotnet tool install -g vpk --version 1.2.161
+      # The previous release lets vpk build a small delta update package.
+      - name: Download previous release
+        run: vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
       # Code signing: add --signParams (or --azureTrustedSignFile) here once
       # there's a certificate. Unsigned builds trigger a SmartScreen warning.
       - name: Pack installer
         run: >
           vpk pack --packId ${{ env.PACK_ID }} --packVersion ${{ env.VERSION }}
           --packDir publish --mainExe Flight.App.exe --packTitle Flight --icon assets/brand/flight.ico
+      - name: Publish GitHub Release
+        run: >
+          vpk upload github --repoUrl https://github.com/${{ github.repository }}
+          --token ${{ secrets.GITHUB_TOKEN }} --publish
+          --releaseName "Flight ${{ env.VERSION }}" --tag v${{ env.VERSION }}
       - uses: actions/upload-artifact@v4
         with:
           name: flight-${{ env.VERSION }}

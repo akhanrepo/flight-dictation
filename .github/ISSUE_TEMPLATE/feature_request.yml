@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an idea for Flight
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For open-ended ideas, a [Discussion](https://github.com/akhanrepo/flight-dictation/discussions) is often a better place to start.
+        Accepted features get a written brief in `docs/briefs/` before anyone builds them.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like
+      description: How would it work from your point of view?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Local-first
+      options:
+        - label: This works without sending audio or text off the machine (or is clearly opt-in).

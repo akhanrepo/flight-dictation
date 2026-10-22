@@ -35,7 +35,7 @@ public class FlightOptions
     public TimeSpan ProcessingTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
     /// <summary>
-    /// On Quit, how long confirmed dictations get to finish vocabulary
+    /// On Quit, how long finished dictations get to complete vocabulary
     /// learning before Flight exits anyway. Bounded so Quit never hangs.
     /// </summary>
     public TimeSpan ShutdownVocabularyGrace { get; set; } = TimeSpan.FromSeconds(3);

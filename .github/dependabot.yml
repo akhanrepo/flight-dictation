@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # whisper/llama natives and their bindings move together.
+      inference:
+        patterns: ["Whisper.net*", "LLamaSharp*"]
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*", "Microsoft.Data.Sqlite"]
+      test:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk"]
+    ignore:
+      # NAudio 3.x needs .NET 9; WindowsAppSDK majors need a manual UI check.
+      - dependency-name: "NAudio*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.WindowsAppSDK"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

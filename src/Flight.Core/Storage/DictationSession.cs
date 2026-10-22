@@ -1,7 +1,7 @@
 namespace Flight.Core.Storage;
 
 /// <summary>
-/// One completed, user-confirmed dictation. Matches the PRD data model;
+/// One completed dictation, as copied to the clipboard. Matches the PRD data model;
 /// feature #2 (vocabulary building) reads directly from these rows.
 /// </summary>
 public record DictationSession

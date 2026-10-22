@@ -1,7 +1,7 @@
 namespace Flight.Core.Vocabulary;
 
 /// <summary>
-/// A term learned automatically from a confirmed dictation. Matches the PRD
+/// A term learned automatically from a delivered dictation. Matches the PRD
 /// data model (term, embedding, frequency, last_used_at, source). There is no
 /// manual-entry path by design: every row originates from a real dictation.
 /// </summary>
@@ -14,7 +14,7 @@ public record VocabularyEntry
     /// <summary>Embedding used for similarity retrieval. Never empty in stored rows.</summary>
     public required float[] Embedding { get; init; }
 
-    /// <summary>How many confirmed dictations this term has appeared in.</summary>
+    /// <summary>How many dictations this term has appeared in.</summary>
     public int Frequency { get; init; } = 1;
 
     public DateTimeOffset LastUsedAt { get; init; } = DateTimeOffset.UtcNow;

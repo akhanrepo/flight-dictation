@@ -5,8 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  dotnet:
+  # Everything, on the platform Flight ships for.
+  windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,3 +21,15 @@ jobs:
         run: dotnet test Flight.slnx --configuration Release
       - name: Build Flight.App (x64)
         run: dotnet build src/Flight.App/Flight.App.csproj --configuration Release -p:Platform=x64
+
+  # Core and its tests are platform-neutral; keep them that way, so
+  # contributors on Linux and macOS can work on them.
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test Core
+        run: dotnet test tests/Flight.Tests/Flight.Tests.csproj --configuration Release

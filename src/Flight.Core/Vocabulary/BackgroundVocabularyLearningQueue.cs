@@ -8,7 +8,7 @@ namespace Flight.Core.Vocabulary;
 /// <summary>
 /// Unbounded channel drained by a single background worker. Enqueue is
 /// non-blocking and never throws: a vocabulary failure must not cost the user
-/// their dictation, which they have already confirmed and copied.
+/// their dictation, which is already on their clipboard.
 /// </summary>
 public sealed class BackgroundVocabularyLearningQueue : IVocabularyLearningQueue, IAsyncDisposable
 {

@@ -1,5 +1,12 @@
 # Project Flight — PRD
 
+> **Status update (October 2026): Flight is now open source (MIT).** Three decisions below were reversed:
+> - **Open source.** The "closed source" non-goal is withdrawn; see [feature 11](briefs/feature11.md).
+> - **No subscription.** Accounts, Stripe billing and cloud entitlement (scope item 6, build step 5) were removed. Cloud mode is bring-your-own-key and free.
+> - **No preview step.** The notification-with-preview (scope item 2) became a small listening/processing indicator, and the text goes to the clipboard automatically; see [feature 9](briefs/feature9.md).
+>
+> The rest of this document is the original PRD, kept as the record of what was planned and why.
+
 ## Problem
 
 Knowledge workers who dictate technical/business content have two bad options today: standalone dictation tools (Wispr Flow, SuperWhisper) that produce clean text but forget everything between sessions, or general-purpose notes apps that don't do dictation well. Neither compounds. A consultant who dictates client notes, then joins a call, then drafts a deliverable, gets three disconnected tools with three empty contexts, re-explaining jargon and client names every time.
@@ -42,7 +49,7 @@ The 6 scope items above describe product capability, not buildable units — som
 - Direct text injection into focused app fields (accessibility APIs, per-app handling) — clipboard-copy is enough to validate the core loop; injection is a hardening pass, not a differentiator
 - Meeting capture — roadmap phase 2, needs its own local-transcription pipeline. MVP non-goal only, not a permanent one: see Tech constraints for the architecture provision that keeps this addable without a redesign.
 - Document generation / templates — roadmap phase 3, depends on accumulated context from phases 1–2. Same architecture provision applies.
-- Open source release — commercial strategy is closed source
+- ~~Open source release — commercial strategy is closed source~~ *(reversed October 2026: Flight is MIT-licensed)*
 - Agentic coding integration as a distinct feature — technical dictation quality is a quality bar within core dictation, not a separate build
 - Team/multi-seat accounts, SSO, audit logging — buyer is an individual consultant or small firm, not enterprise procurement, for MVP
 

@@ -1,8 +1,12 @@
-# Builds an installer + update package into artifacts\releases, the local
-# update feed that installed copies read (Flight:UpdateFeed in appsettings.json).
+# Builds an installer + update package into artifacts\releases, for testing an
+# installer locally without publishing a GitHub Release.
 #   .\scripts\pack-local.ps1 -Version 0.1.1
-# Then run artifacts\releases\FlightApp-win-Setup.exe to install, or restart an
-# installed copy to pick the new version up (it applies on exit).
+# Then run artifacts\releases\FlightApp-win-Setup.exe to install.
+#
+# Installed copies update from GitHub Releases (Flight:UpdateFeed in
+# appsettings.json). To have one update from this folder instead, set a user
+# environment variable and restart it (updates apply on exit):
+#   [Environment]::SetEnvironmentVariable('Flight__UpdateFeed', "$PWD\artifacts\releases", 'User')
 param([Parameter(Mandatory)][string]$Version)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent

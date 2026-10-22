@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace Flight.Core.Vocabulary;
 
 /// <summary>
-/// The extract-and-store half of feature #2: takes a confirmed dictation,
+/// The extract-and-store half of feature #2: takes a delivered dictation,
 /// pulls candidate terms out of its cleaned output, and upserts them. Invoked
 /// off the dictation loop by <see cref="IVocabularyLearningQueue"/>.
 /// </summary>

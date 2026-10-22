@@ -1,0 +1,13 @@
+<Project>
+  <!-- Shared by every project in the repo. -->
+  <PropertyGroup>
+    <Product>Flight</Product>
+    <Authors>Ali Khan and contributors</Authors>
+    <Copyright>Copyright (c) 2026 Ali Khan and contributors</Copyright>
+    <RepositoryUrl>https://github.com/akhanrepo/flight-dictation</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+</Project>
