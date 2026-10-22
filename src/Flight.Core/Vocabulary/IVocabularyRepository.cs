@@ -21,4 +21,7 @@ public interface IVocabularyRepository
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<VocabularyEntry>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Replaces one entry's embedding, leaving frequency and dates alone.</summary>
+    Task UpdateEmbeddingAsync(long id, float[] embedding, CancellationToken cancellationToken = default);
 }

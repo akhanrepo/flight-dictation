@@ -126,6 +126,7 @@ public class SqliteSettingsStoreTests : IDisposable
 
         Assert.Equal("ur", store.Current.SourceLanguage);
         Assert.Equal(Hotkey.Default, store.Current.Hotkey);
+        Assert.True(store.Current.AiCleanup);
 
         // And the new column is writable.
         Assert.True(Hotkey.TryParse("F8", out var f8));
@@ -152,5 +153,16 @@ public class SqliteSettingsStoreTests : IDisposable
         var updated = await store.UpdateAsync(new FlightSettings { TargetLanguage = "fr" });
 
         Assert.Same(updated, seen);
+    }
+
+    // Feature #10: AI cleanup defaults on and survives a restart
+    [Fact]
+    public async Task AiCleanup_Defaults_On_And_Survives_A_Restart()
+    {
+        Assert.True(CreateStore().Current.AiCleanup);
+
+        await CreateStore().UpdateAsync(new FlightSettings { AiCleanup = false });
+
+        Assert.False(CreateStore().Current.AiCleanup);
     }
 }

@@ -40,6 +40,23 @@
 
                 <TextBlock x:Name="HotkeyStatusText" TextWrapping="Wrap" Style="{StaticResource CaptionMutedTextStyle}" Margin="4,0" />
 
+                <Border Style="{StaticResource SettingsCardStyle}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="AI cleanup" />
+                            <TextBlock Text="Removes filler words and fixes grammar. Off is fastest; translation always uses it."
+                                       TextWrapping="Wrap" Style="{StaticResource CaptionMutedTextStyle}" />
+                        </StackPanel>
+                        <ToggleSwitch x:Name="AiCleanupToggle" Grid.Column="1" OnContent="" OffContent="" MinWidth="0"
+                                      VerticalAlignment="Center" Toggled="OnAiCleanupToggled"
+                                      AutomationProperties.Name="AI cleanup" />
+                    </Grid>
+                </Border>
+
                 <TextBlock Text="Language" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="4,12,0,0" />
 
                 <Border Style="{StaticResource SettingsCardStyle}">

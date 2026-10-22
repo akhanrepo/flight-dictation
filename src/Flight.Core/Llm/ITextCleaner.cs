@@ -10,11 +10,16 @@ namespace Flight.Core.Llm;
 /// <param name="LlmMode">
 /// Engine to run this cleanup on, captured when the dictation started.
 /// </param>
+/// <param name="AiCleanup">
+/// The "AI cleanup" setting. Off, a same-language dictation is tidied by
+/// rules only; translation always needs the model.
+/// </param>
 public record TranscriptCleanupRequest(
     string RawTranscript,
     string SourceLanguage = SupportedLanguages.DefaultCode,
     string TargetLanguage = SupportedLanguages.DefaultCode,
-    LlmMode LlmMode = LlmMode.Local)
+    LlmMode LlmMode = LlmMode.Local,
+    bool AiCleanup = true)
 {
     public bool RequiresTranslation =>
         !string.Equals(SourceLanguage, TargetLanguage, StringComparison.OrdinalIgnoreCase);

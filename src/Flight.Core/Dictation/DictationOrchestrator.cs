@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Flight.Core.Audio;
 using Flight.Core.Clipboard;
 using Flight.Core.Input;
@@ -31,6 +32,8 @@ public class DictationOrchestrator : IDisposable
     private readonly ISettingsStore _settings;
     private readonly FlightOptions _options;
     private readonly ILogger<DictationOrchestrator> _logger;
+    private readonly DictationActivity? _activity;
+    private readonly IDictationTimingsLog? _timings;
 
     // Cancelled on Dispose, so quitting mid-processing never writes the clipboard.
     private readonly CancellationTokenSource _shutdown = new();
@@ -48,6 +51,7 @@ public class DictationOrchestrator : IDisposable
             }
 
             _state = value;
+            _activity?.SetBusy(value is DictationState.Capturing or DictationState.Processing);
             StateChanged?.Invoke(value);
         }
     }
@@ -97,7 +101,9 @@ public class DictationOrchestrator : IDisposable
         IVocabularyLearningQueue vocabularyLearning,
         ISettingsStore settings,
         FlightOptions options,
-        ILogger<DictationOrchestrator> logger)
+        ILogger<DictationOrchestrator> logger,
+        DictationActivity? activity = null,
+        IDictationTimingsLog? timings = null)
     {
         _hotkey = hotkey;
         _capturer = capturer;
@@ -110,6 +116,8 @@ public class DictationOrchestrator : IDisposable
         _settings = settings;
         _options = options;
         _logger = logger;
+        _activity = activity;
+        _timings = timings;
     }
 
     public void Start()
@@ -174,6 +182,8 @@ public class DictationOrchestrator : IDisposable
 
     private async Task ProcessAsync(float[] samples, FlightSettings settings)
     {
+        var total = Stopwatch.StartNew();
+        TimeSpan sttTime;
         string raw;
         string cleaned;
         try
@@ -187,6 +197,7 @@ public class DictationOrchestrator : IDisposable
             raw = TranscriptFilter.Clean(await _stt
                 .TranscribeAsync(samples, settings.SourceLanguage, token)
                 .WaitAsync(token));
+            sttTime = total.Elapsed;
 
             if (raw.Length == 0)
             {
@@ -202,13 +213,15 @@ public class DictationOrchestrator : IDisposable
                         raw,
                         settings.SourceLanguage,
                         settings.TargetLanguage,
-                        settings.LlmMode),
+                        settings.LlmMode,
+                        settings.AiCleanup),
                     token)
                 .WaitAsync(token)).Trim();
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
         {
             // Quitting: drop the result without touching the clipboard or the UI.
+            State = DictationState.Idle;
             return;
         }
         catch (Exception ex)
@@ -227,7 +240,18 @@ public class DictationOrchestrator : IDisposable
             return;
         }
 
+        // Release-to-ready time; the clipboard write and history row after it are milliseconds.
+        var processed = total.Elapsed;
         await DeliverAsync(raw, cleaned, settings);
+
+        _timings?.Record(new DictationTimings(
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromSeconds(samples.Length / (double)SpeechGate.SampleRate),
+            sttTime,
+            processed - sttTime,
+            processed,
+            settings.LlmMode.ToStorageValue(),
+            settings.IsTranslating));
     }
 
     /// <summary>

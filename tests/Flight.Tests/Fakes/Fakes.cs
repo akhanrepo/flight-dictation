@@ -73,6 +73,7 @@ public sealed class FakeSpeechToText : ISpeechToText
     public string? ReceivedLanguage { get; private set; }
     public Exception? ExceptionToThrow { get; set; }
     public TimeSpan Delay { get; set; } = TimeSpan.Zero;
+    public int CallCount { get; private set; }
 
     public async Task<string> TranscribeAsync(
         float[] samples,
@@ -81,6 +82,7 @@ public sealed class FakeSpeechToText : ISpeechToText
     {
         ReceivedSamples = samples;
         ReceivedLanguage = languageCode;
+        CallCount++;
         if (Delay > TimeSpan.Zero)
         {
             await Task.Delay(Delay, cancellationToken);
@@ -244,6 +246,13 @@ public sealed class InMemoryVocabularyRepository : IVocabularyRepository
 
     public Task<IReadOnlyList<VocabularyEntry>> GetAllAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<VocabularyEntry>>(_entries);
+
+    public Task UpdateEmbeddingAsync(long id, float[] embedding, CancellationToken cancellationToken = default)
+    {
+        var index = _entries.FindIndex(e => e.Id == id);
+        _entries[index] = _entries[index] with { Embedding = embedding };
+        return Task.CompletedTask;
+    }
 }
 
 public sealed class FakeVocabularyContextProvider : IVocabularyContextProvider
@@ -412,4 +421,11 @@ public sealed class FakeKeyboardHook : IKeyboardHook
     public void SuppressMenuActivation() => MenuSuppressions++;
 
     public void Dispose() { }
+}
+
+public sealed class FakeTimingsLog : Flight.Core.Dictation.IDictationTimingsLog
+{
+    public List<Flight.Core.Dictation.DictationTimings> Recorded { get; } = [];
+
+    public void Record(Flight.Core.Dictation.DictationTimings timings) => Recorded.Add(timings);
 }

@@ -26,6 +26,13 @@ public record FlightSettings
     /// <summary>The push-to-talk key or combination (feature #8). Right Alt by default.</summary>
     public Hotkey Hotkey { get; init; } = Hotkey.Default;
 
+    /// <summary>
+    /// Tidy same-language dictation with the language model (feature #10).
+    /// Off is the fastest path: whisper plus rule-based tidying. Translation
+    /// always uses the model.
+    /// </summary>
+    public bool AiCleanup { get; init; } = true;
+
     /// <summary>True when the pipeline should translate rather than only clean up.</summary>
     public bool IsTranslating =>
         !string.Equals(SourceLanguage, TargetLanguage, StringComparison.OrdinalIgnoreCase);

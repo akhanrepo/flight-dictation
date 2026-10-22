@@ -96,6 +96,17 @@ public class SqliteVocabularyRepository : IVocabularyRepository
         return Task.FromResult<IReadOnlyList<VocabularyEntry>>(entries);
     }
 
+    public Task UpdateEmbeddingAsync(long id, float[] embedding, CancellationToken cancellationToken = default)
+    {
+        using var connection = _database.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE vocabulary_entries SET embedding = $embedding WHERE id = $id;";
+        command.Parameters.AddWithValue("$embedding", EmbeddingBlob.ToBlob(embedding));
+        command.Parameters.AddWithValue("$id", id);
+        command.ExecuteNonQuery();
+        return Task.CompletedTask;
+    }
+
     private static VocabularyEntry Read(SqliteDataReader reader) => new()
     {
         Id = reader.GetInt64(0),

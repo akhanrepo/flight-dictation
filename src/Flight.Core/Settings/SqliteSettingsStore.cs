@@ -44,7 +44,7 @@ public class SqliteSettingsStore : ISettingsStore
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT source_language, target_language, llm_mode, hotkey
+            SELECT source_language, target_language, llm_mode, hotkey, ai_cleanup
             FROM settings
             WHERE id = 1;
             """;
@@ -65,6 +65,7 @@ public class SqliteSettingsStore : ISettingsStore
             Hotkey = !reader.IsDBNull(3) && Hotkey.TryParse(reader.GetString(3), out var hotkey) && hotkey.Validate() is null
                 ? hotkey
                 : Hotkey.Default,
+            AiCleanup = reader.GetInt64(4) != 0,
         };
     }
 
@@ -73,18 +74,20 @@ public class SqliteSettingsStore : ISettingsStore
         using var connection = _database.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO settings (id, source_language, target_language, llm_mode, hotkey)
-            VALUES (1, $source, $target, $llmMode, $hotkey)
+            INSERT INTO settings (id, source_language, target_language, llm_mode, hotkey, ai_cleanup)
+            VALUES (1, $source, $target, $llmMode, $hotkey, $aiCleanup)
             ON CONFLICT (id) DO UPDATE SET
                 source_language = excluded.source_language,
                 target_language = excluded.target_language,
                 llm_mode = excluded.llm_mode,
-                hotkey = excluded.hotkey;
+                hotkey = excluded.hotkey,
+                ai_cleanup = excluded.ai_cleanup;
             """;
         command.Parameters.AddWithValue("$source", settings.SourceLanguage);
         command.Parameters.AddWithValue("$target", settings.TargetLanguage);
         command.Parameters.AddWithValue("$llmMode", settings.LlmMode.ToStorageValue());
         command.Parameters.AddWithValue("$hotkey", settings.Hotkey.ToString());
+        command.Parameters.AddWithValue("$aiCleanup", settings.AiCleanup ? 1 : 0);
         command.ExecuteNonQuery();
     }
 }

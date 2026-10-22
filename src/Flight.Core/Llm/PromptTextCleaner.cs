@@ -30,6 +30,12 @@ public class PromptTextCleaner : ITextCleaner
         "mis-heard version of one, write it with this exact spelling. Never add a word from this " +
         "list that the speaker did not say:";
 
+    /// <summary>
+    /// Below this many words there's nothing for the model to tidy that rules
+    /// can't ("Yes, thanks."), and a full LLM pass costs seconds on CPU.
+    /// </summary>
+    public const int ShortUtteranceWordCount = 4;
+
     private readonly ILlmCompletion _llm;
     private readonly IVocabularyContextProvider _vocabulary;
     private readonly ILogger<PromptTextCleaner> _logger;
@@ -51,6 +57,12 @@ public class PromptTextCleaner : ITextCleaner
         if (string.IsNullOrWhiteSpace(request.RawTranscript))
         {
             return string.Empty;
+        }
+
+        if (!request.RequiresTranslation && (!request.AiCleanup || IsShort(request.RawTranscript)))
+        {
+            // Fast path: no retrieval, no model.
+            return CleanupGuard.FallbackClean(request.RawTranscript);
         }
 
         var terms = await _vocabulary.GetRelevantTermsAsync(request.RawTranscript, cancellationToken);
@@ -75,6 +87,9 @@ public class PromptTextCleaner : ITextCleaner
 
         return cleaned;
     }
+
+    internal static bool IsShort(string transcript) =>
+        transcript.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length < ShortUtteranceWordCount;
 
     /// <summary>
     /// Cleanup only ever shortens text, so the budget tracks the input.

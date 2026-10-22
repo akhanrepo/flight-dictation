@@ -29,7 +29,7 @@ public sealed partial class SettingsWindow : Window
         InitializeComponent();
         Title = "Flight settings";
         TitleLogo.Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri(Platform.AppIcons.LogoPng));
-        Platform.WindowChrome.Apply(this, TitleBar, widthDip: 440, heightDip: 600);
+        Platform.WindowChrome.Apply(this, TitleBar, widthDip: 440, heightDip: 640);
         // Closing mid-recording must not leave the keyboard captured.
         Closed += (_, _) =>
         {
@@ -51,6 +51,7 @@ public sealed partial class SettingsWindow : Window
 
             var current = _settings.Current;
             HotkeyButton.Content = current.Hotkey.ToString();
+            AiCleanupToggle.IsOn = current.AiCleanup;
             SourceLanguageBox.SelectedItem = SupportedLanguages.Get(current.SourceLanguage);
             TargetLanguageBox.SelectedItem = SupportedLanguages.Get(current.TargetLanguage);
             CloudModeToggle.IsOn = current.LlmMode == LlmMode.Cloud;
@@ -90,6 +91,7 @@ public sealed partial class SettingsWindow : Window
         if (result.Cancelled)
         {
             HotkeyButton.Content = current.Hotkey.ToString();
+            AiCleanupToggle.IsOn = current.AiCleanup;
             HotkeyStatusText.Text = string.Empty;
             return;
         }
@@ -97,6 +99,7 @@ public sealed partial class SettingsWindow : Window
         if (!result.IsValid)
         {
             HotkeyButton.Content = current.Hotkey.ToString();
+            AiCleanupToggle.IsOn = current.AiCleanup;
             HotkeyStatusText.Text = $"{result.Hotkey} can't be used: {result.Error}";
             return;
         }
@@ -112,6 +115,24 @@ public sealed partial class SettingsWindow : Window
         catch (Exception ex)
         {
             HotkeyButton.Content = current.Hotkey.ToString();
+            AiCleanupToggle.IsOn = current.AiCleanup;
+            HotkeyStatusText.Text = $"Couldn't save that: {ex.Message}";
+        }
+    }
+
+    private async void OnAiCleanupToggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading)
+        {
+            return;
+        }
+
+        try
+        {
+            await _settings.UpdateAsync(_settings.Current with { AiCleanup = AiCleanupToggle.IsOn });
+        }
+        catch (Exception ex)
+        {
             HotkeyStatusText.Text = $"Couldn't save that: {ex.Message}";
         }
     }

@@ -28,6 +28,28 @@ public class BackgroundVocabularyLearningQueueTests
         CleanedOutput = cleaned,
     };
 
+    // Feature #10 criterion: learning (an LLM call) waits while a dictation
+    // is capturing or processing, so it never slows the one the user waits on
+    [Fact]
+    public async Task Learning_WaitsForTheDictationLoopToBeIdle()
+    {
+        var activity = new Flight.Core.Dictation.DictationActivity();
+        activity.SetBusy(true);
+        await using var queue = new BackgroundVocabularyLearningQueue(
+            new VocabularyLearner(_extractor, new HashingEmbeddingGenerator(), _vocabulary,
+                NullLogger<VocabularyLearner>.Instance),
+            NullLogger<BackgroundVocabularyLearningQueue>.Instance,
+            activity);
+
+        queue.Enqueue(Session());
+        await Task.Delay(100);
+        Assert.Empty(_extractor.ReceivedTexts);
+
+        activity.SetBusy(false);
+        await queue.WaitForIdleAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Single(_extractor.ReceivedTexts);
+    }
+
     // Criterion: the job runs in the background — Enqueue returns immediately
     // even when extraction itself is slow
     [Fact]

@@ -134,6 +134,9 @@ public class VocabularyContextInjectionTests
 
         public Task<IReadOnlyList<VocabularyEntry>> GetAllAsync(CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("store unavailable");
+
+        public Task UpdateEmbeddingAsync(long id, float[] embedding, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("store unavailable");
     }
 
     // Rows stored before the term rules existed are never injected

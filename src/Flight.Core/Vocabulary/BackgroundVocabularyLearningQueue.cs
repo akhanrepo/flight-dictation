@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Flight.Core.Dictation;
 using Flight.Core.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -16,6 +17,7 @@ public sealed class BackgroundVocabularyLearningQueue : IVocabularyLearningQueue
 
     private readonly VocabularyLearner _learner;
     private readonly ILogger<BackgroundVocabularyLearningQueue> _logger;
+    private readonly DictationActivity? _activity;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Task _worker;
     private bool _disposed;
@@ -26,10 +28,12 @@ public sealed class BackgroundVocabularyLearningQueue : IVocabularyLearningQueue
 
     public BackgroundVocabularyLearningQueue(
         VocabularyLearner learner,
-        ILogger<BackgroundVocabularyLearningQueue> logger)
+        ILogger<BackgroundVocabularyLearningQueue> logger,
+        DictationActivity? activity = null)
     {
         _learner = learner;
         _logger = logger;
+        _activity = activity;
         _idle.TrySetResult();
         _worker = Task.Run(ProcessAsync);
     }
@@ -60,6 +64,13 @@ public sealed class BackgroundVocabularyLearningQueue : IVocabularyLearningQueue
                 {
                     try
                     {
+                        // Extraction runs the LLM: never alongside a dictation
+                        // the user is waiting on.
+                        if (_activity is not null)
+                        {
+                            await _activity.WaitForIdleAsync(_shutdown.Token);
+                        }
+
                         await _learner.LearnAsync(session, _shutdown.Token);
                     }
                     catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)

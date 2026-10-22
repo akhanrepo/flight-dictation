@@ -25,22 +25,31 @@ public static class CleanerBenchmark
         report.AppendLine($"Machine: {Environment.MachineName}, {Environment.ProcessorCount} logical cores");
         report.AppendLine();
 
-        var total = TimeSpan.Zero;
-        for (var i = 0; i < SampleTranscripts.Length; i++)
+        // Two passes: the first includes loading the model (what a dictation
+        // straight after launch paid before warm-up), the second is steady state.
+        foreach (var pass in new[] { "cold", "warm" })
         {
-            var stopwatch = Stopwatch.StartNew();
-            var cleaned = await cleaner.CleanAsync(
-                new TranscriptCleanupRequest(SampleTranscripts[i]), cancellationToken);
-            stopwatch.Stop();
-            total += stopwatch.Elapsed;
+            var total = TimeSpan.Zero;
+            for (var i = 0; i < SampleTranscripts.Length; i++)
+            {
+                var stopwatch = Stopwatch.StartNew();
+                var cleaned = await cleaner.CleanAsync(
+                    new TranscriptCleanupRequest(SampleTranscripts[i]), cancellationToken);
+                stopwatch.Stop();
+                total += stopwatch.Elapsed;
 
-            report.AppendLine($"[{i + 1}] {stopwatch.Elapsed.TotalSeconds:F1}s (first run includes model load)");
-            report.AppendLine($"    raw:     {SampleTranscripts[i]}");
-            report.AppendLine($"    cleaned: {cleaned}");
+                report.AppendLine($"[{pass} {i + 1}] {stopwatch.Elapsed.TotalSeconds:F1}s");
+                if (pass == "cold")
+                {
+                    report.AppendLine($"    raw:     {SampleTranscripts[i]}");
+                    report.AppendLine($"    cleaned: {cleaned}");
+                }
+            }
+
+            report.AppendLine($"{pass}: total {total.TotalSeconds:F1}s, average {total.TotalSeconds / SampleTranscripts.Length:F1}s per transcript");
             report.AppendLine();
         }
 
-        report.AppendLine($"Total: {total.TotalSeconds:F1}s, average {total.TotalSeconds / SampleTranscripts.Length:F1}s per transcript");
         return report.ToString();
     }
 }

@@ -79,7 +79,8 @@ public class FlightDatabase
                     source_language TEXT NOT NULL,
                     target_language TEXT NOT NULL,
                     llm_mode TEXT NOT NULL DEFAULT 'local',
-                    hotkey TEXT NULL
+                    hotkey TEXT NULL,
+                    ai_cleanup INTEGER NOT NULL DEFAULT 1
                 );
                 """;
             command.ExecuteNonQuery();
@@ -87,6 +88,7 @@ public class FlightDatabase
             // Columns added after a table first shipped. CREATE TABLE IF NOT
             // EXISTS leaves an existing table alone, so add them in place.
             AddColumnIfMissing(connection, "settings", "hotkey", "TEXT NULL");
+            AddColumnIfMissing(connection, "settings", "ai_cleanup", "INTEGER NOT NULL DEFAULT 1");
 
             _initialized = true;
         }

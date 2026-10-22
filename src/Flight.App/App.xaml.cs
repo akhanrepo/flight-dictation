@@ -57,11 +57,6 @@ public partial class App : Application, IShellActions
             services.AddSingleton<IAppUpdater, VelopackAppUpdater>();
             services.AddSingleton<IStartupRegistration, RegistryStartupRegistration>();
             services.AddSingleton<IShellActions>(this);
-            // Real embeddings come from the same loaded GGUF, with the
-            // model-free generator as the fallback path.
-            services.AddSingleton<IEmbeddingGenerator>(sp => new LlamaEmbeddingGenerator(
-                sp.GetRequiredService<LlamaCompletion>(),
-                new HashingEmbeddingGenerator()));
             services.AddSingleton<IClipboardWriter, WindowsClipboardWriter>();
             services.AddSingleton(sp => new HttpModelStore(sp.GetRequiredService<FlightOptions>(), new HttpClient()));
             services.AddSingleton<IModelStore>(sp => sp.GetRequiredService<HttpModelStore>());
@@ -145,6 +140,11 @@ public partial class App : Application, IShellActions
         }
 
         _orchestrator.Start();
+
+        // Background, never throw: load the models so the first dictation is
+        // as fast as the rest, and bring old vocabulary onto the current embedder.
+        _ = Task.Run(() => Host.Services.GetRequiredService<ModelWarmup>().RunAsync());
+        _ = Task.Run(() => Host.Services.GetRequiredService<VocabularyReembedder>().RunAsync());
 
         // Background; applies on exit and never throws.
         _ = Host.Services.GetRequiredService<UpdateCheck>().RunAsync();

@@ -81,6 +81,30 @@ public class AppHostTests
         Assert.Equal("https://github.com/akhanrepo/flight-dictation", options.UpdateFeed);
     }
 
+    // Feature #10 criterion: retrieval on the dictation path never runs the
+    // LLM — the registered embedder is the model-free trigram one
+    [Fact]
+    public async Task AppHost_VocabularyRetrievalNeverCallsTheLlm()
+    {
+        var local = new FakeLlmCompletion("local");
+        using var host = AppHost.Build(services =>
+        {
+            services.AddSingleton(new Flight.Core.FlightOptions
+            {
+                DataDirectory = Path.Combine(Path.GetTempPath(), "flight-tests-" + Guid.NewGuid().ToString("N")),
+            });
+            services.AddSingleton(new LocalLlmEngine(local));
+            services.AddSingleton<Flight.Core.Security.ISecretStore>(new InMemorySecretStore());
+        });
+
+        Assert.IsType<Flight.Core.Vocabulary.HashingEmbeddingGenerator>(
+            host.Services.GetRequiredService<Flight.Core.Vocabulary.IEmbeddingGenerator>());
+
+        await host.Services.GetRequiredService<Flight.Core.Vocabulary.IVocabularyContextProvider>()
+            .GetRelevantTermsAsync("send the contoso report");
+        Assert.Empty(local.Requests);
+    }
+
     [Fact]
     public void AppHost_UsesTheToastPresenterAsTheDictationUi()
     {

@@ -46,6 +46,10 @@ public static class AppHost
         builder.Services.AddSingleton<IDictationSessionRepository, SqliteDictationSessionRepository>();
         builder.Services.AddSingleton<ISettingsStore, SqliteSettingsStore>();
         builder.Services.AddSingleton<DictationOrchestrator>();
+        // Speed (feature #10): background work waits for an idle dictation
+        // loop, and every dictation's stage timings land in logs/timings.log.
+        builder.Services.AddSingleton<DictationActivity>();
+        builder.Services.AddSingleton<IDictationTimingsLog, FileDictationTimingsLog>();
 
         // Push-to-talk (feature #8) over the shell's IKeyboardHook. The same
         // instance records new hotkeys for the Settings window.
@@ -58,14 +62,15 @@ public static class AppHost
         builder.Services.AddSingleton<IDictationUi>(sp => sp.GetRequiredService<ToastPresenter>());
         builder.Services.AddSingleton<IToastPositionStore, JsonToastPositionStore>();
 
-        // Vocabulary (feature #2). The embedding generator is platform-neutral
-        // and model-free by default, so this pipeline works before the GGUF has
-        // downloaded; the shell overrides it with the llama.cpp embedder.
+        // Vocabulary (feature #2). Embeddings are the model-free trigram kind
+        // (feature #10): instant, lexical — which is what matching misheard
+        // names needs — and never a second LLM pass on the dictation path.
         builder.Services.AddSingleton<IVocabularyRepository, SqliteVocabularyRepository>();
         builder.Services.AddSingleton<IEmbeddingGenerator>(_ => new HashingEmbeddingGenerator());
         builder.Services.AddSingleton<ITermExtractor, LlmTermExtractor>();
         builder.Services.AddSingleton<IVocabularyContextProvider, VocabularyContextProvider>();
         builder.Services.AddSingleton<VocabularyLearner>();
+        builder.Services.AddSingleton<VocabularyReembedder>();
         builder.Services.AddSingleton<BackgroundVocabularyLearningQueue>();
         builder.Services.AddSingleton<IVocabularyLearningQueue>(
             sp => sp.GetRequiredService<BackgroundVocabularyLearningQueue>());
@@ -81,6 +86,7 @@ public static class AppHost
 
         // Cleanup runs over whichever engine the router selects.
         builder.Services.AddSingleton<ITextCleaner, PromptTextCleaner>();
+        builder.Services.AddSingleton<ModelWarmup>();
 
         // Auto-update: the shell supplies IAppUpdater (Velopack).
         builder.Services.AddSingleton<UpdateCheck>();
