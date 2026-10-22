@@ -86,10 +86,10 @@ public class VocabularyLearningTests
         Assert.Equal("Fabrikam", entry.Term);
     }
 
-    // Criterion: the confirmed dictation is handed to learning AFTER the
-    // clipboard copy, never before
+    // Criterion: the dictation is handed to learning AFTER the clipboard
+    // copy, never before
     [Fact]
-    public async Task Confirm_Copies_To_Clipboard_Before_Enqueuing_Extraction()
+    public async Task Dictation_Copies_To_Clipboard_Before_Enqueuing_Extraction()
     {
         var clipboard = new FakeClipboardWriter();
         var queue = new FakeVocabularyLearningQueue();
@@ -107,7 +107,6 @@ public class VocabularyLearningTests
         hotkey.Press();
         hotkey.Release();
         await orchestrator.ProcessingTask!;
-        await orchestrator.ConfirmAsync();
 
         Assert.Equal(["clipboard", "enqueued"], order);
     }
@@ -115,7 +114,7 @@ public class VocabularyLearningTests
     // Criterion: the stored session (with its id) is what gets handed off, so
     // entries can be traced back to their source dictation
     [Fact]
-    public async Task Confirm_Enqueues_The_Persisted_Session()
+    public async Task Dictation_Enqueues_The_Persisted_Session()
     {
         var queue = new FakeVocabularyLearningQueue();
         var sessions = new InMemorySessionRepository();
@@ -131,21 +130,22 @@ public class VocabularyLearningTests
         hotkey.Press();
         hotkey.Release();
         await orchestrator.ProcessingTask!;
-        await orchestrator.ConfirmAsync();
 
         var enqueued = Assert.Single(queue.Enqueued);
         Assert.Equal(sessions.Sessions[0].Id, enqueued.Id);
         Assert.Equal("Contoso ships Tuesday.", enqueued.CleanedOutput);
     }
 
-    // Criterion: a rejected dictation is not a confirmed one — nothing is learned
+    // Criterion: only a delivered dictation teaches anything — a failed one
+    // learns nothing
     [Fact]
-    public async Task RejectedDictation_Learns_Nothing()
+    public async Task FailedDictation_Learns_Nothing()
     {
         var queue = new FakeVocabularyLearningQueue();
         var hotkey = new FakeHotkey();
+        var cleaner = new FakeTextCleaner { ExceptionToThrow = new InvalidOperationException("llm failed") };
         var orchestrator = new DictationOrchestrator(
-            hotkey, new FakeAudioCapturer(), new FakeSpeechToText(), new FakeTextCleaner(),
+            hotkey, new FakeAudioCapturer(), new FakeSpeechToText(), cleaner,
             new FakeClipboardWriter(), new InMemorySessionRepository(), new FakeDictationUi(),
             queue, new FakeSettingsStore(), new FlightOptions(), NullLogger<DictationOrchestrator>.Instance);
         orchestrator.Start();
@@ -153,7 +153,6 @@ public class VocabularyLearningTests
         hotkey.Press();
         hotkey.Release();
         await orchestrator.ProcessingTask!;
-        orchestrator.Reject();
 
         Assert.Empty(queue.Enqueued);
     }

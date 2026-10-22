@@ -63,9 +63,6 @@ public partial class App : Application, IShellActions
             services.AddSingleton<IClipboardWriter, WindowsClipboardWriter>();
             services.AddSingleton(sp => new HttpModelStore(sp.GetRequiredService<FlightOptions>(), new HttpClient()));
             services.AddSingleton<IModelStore>(sp => sp.GetRequiredService<HttpModelStore>());
-            // The toast's view model (ToastPresenter) is AppHost's default
-            // IDictationUi; the window renders it.
-            services.AddSingleton<IForegroundWindow, ForegroundWindow>();
         });
     }
 
@@ -86,10 +83,9 @@ public partial class App : Application, IShellActions
     {
         _dispatcher = DispatcherQueue.GetForCurrentThread();
         var ui = Host.Services.GetRequiredService<ToastPresenter>();
-        _window = new DictationToastWindow(
-            ui,
-            Host.Services.GetRequiredService<FocusReturn>(),
-            Host.Services.GetRequiredService<IToastPositionStore>());
+        // The indicator's view model (ToastPresenter) is AppHost's default
+        // IDictationUi; the window renders it.
+        _window = new DictationToastWindow(ui, Host.Services.GetRequiredService<IToastPositionStore>());
 
         // View changes arrive from the hotkey hook and background tasks; the
         // window renders on the UI thread.
@@ -104,10 +100,11 @@ public partial class App : Application, IShellActions
                 _dispatcher.TryEnqueue(() => _window.Render(view));
             }
         };
+        // ~20 a second from the audio thread while listening.
+        ui.LevelChanged += level => _dispatcher.TryEnqueue(() => _window.RenderLevel(level));
 
         _orchestrator = Host.Services.GetRequiredService<DictationOrchestrator>();
         _window.Orchestrator = _orchestrator;
-        _window.OpenSettings = ShowSettings;
 
         // The tray comes first, so Flight is visibly running (and quittable)
         // even during the first-run model download.
@@ -232,7 +229,7 @@ public partial class App : Application, IShellActions
 
     /// <summary>
     /// PRD validation aid: measures real local-LLM cleanup latency on this
-    /// machine. Results land in the toast (confirm copies them) and in
+    /// machine. Results are copied to the clipboard and written to
     /// benchmark-results.txt under the data directory.
     /// </summary>
     private async Task RunBenchmarkAsync(ToastPresenter ui)
@@ -253,6 +250,7 @@ public partial class App : Application, IShellActions
             return;
         }
 
-        ui.ShowPreview(report);
+        Host.Services.GetRequiredService<IClipboardWriter>().SetText(report);
+        ui.ShowCopied();
     }
 }

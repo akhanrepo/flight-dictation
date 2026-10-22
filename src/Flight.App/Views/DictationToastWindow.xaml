@@ -4,9 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Flight">
 
-    <!-- Renders a Core ToastView (feature #7). The whole surface drags the
-         window; buttons and the text are click-through regions. -->
-    <Grid x:Name="Root" KeyDown="OnKeyDown" Background="Transparent">
+    <!-- The indicator pill (feature #9). Renders a Core ToastView; the whole
+         surface drags the window, and it never takes keyboard focus. -->
+    <Grid x:Name="Root" Background="Transparent" Padding="14,0">
         <Grid.Resources>
             <Storyboard x:Name="ListeningPulse" RepeatBehavior="Forever" AutoReverse="True">
                 <DoubleAnimation Storyboard.TargetName="ListeningDot" Storyboard.TargetProperty="Opacity"
@@ -18,68 +18,37 @@
             </Storyboard>
         </Grid.Resources>
 
-        <StackPanel x:Name="ContentPanel" Padding="16,12" Spacing="8" VerticalAlignment="Top">
+        <StackPanel x:Name="ContentPanel" Orientation="Horizontal" Spacing="10"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
 
-            <!-- Header: indicator · title (and pill hint) · icon buttons -->
-            <Grid ColumnSpacing="10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <Grid Grid.Column="0" Width="16" Height="16" VerticalAlignment="Center">
-                    <Ellipse x:Name="ListeningDot" Width="10" Height="10" Fill="#EF4444" Visibility="Collapsed" />
-                    <ProgressRing x:Name="Spinner" Width="16" Height="16" IsActive="False" Visibility="Collapsed" />
-                    <Image x:Name="Logo" Width="16" Height="16" Visibility="Collapsed" />
-                    <FontIcon x:Name="ToneIcon" FontSize="14" Visibility="Collapsed" />
-                </Grid>
-
-                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock x:Name="TitleText" Style="{StaticResource BodyStrongTextBlockStyle}"
-                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" />
-                    <TextBlock x:Name="PillHintText" Style="{StaticResource CaptionMutedTextStyle}"
-                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Visibility="Collapsed" />
-                </StackPanel>
-
-                <StackPanel x:Name="HeaderButtons" Grid.Column="2" Orientation="Horizontal" Spacing="2"
-                            VerticalAlignment="Center" Visibility="Collapsed">
-                    <Button x:Name="SettingsButton" Style="{StaticResource IconButtonStyle}"
-                            ToolTipService.ToolTip="Settings" AutomationProperties.Name="Settings"
-                            Click="OnSettingsClicked">
-                        <FontIcon Glyph="&#xE713;" FontSize="14" />
-                    </Button>
-                    <Button x:Name="CloseButton" Style="{StaticResource IconButtonStyle}"
-                            ToolTipService.ToolTip="Dismiss (Esc)" AutomationProperties.Name="Dismiss"
-                            Click="OnDismissClicked">
-                        <FontIcon Glyph="&#xE711;" FontSize="12" />
-                    </Button>
-                </StackPanel>
+            <!-- Indicator: one of dot / spinner / tone icon / logo -->
+            <Grid Width="16" Height="16" VerticalAlignment="Center">
+                <Ellipse x:Name="ListeningDot" Width="10" Height="10" Fill="#EF4444" Visibility="Collapsed" />
+                <ProgressRing x:Name="Spinner" Width="16" Height="16" IsActive="False" Visibility="Collapsed" />
+                <FontIcon x:Name="ToneIcon" FontSize="14" Visibility="Collapsed" />
+                <Image x:Name="Logo" Width="16" Height="16" Visibility="Collapsed" />
             </Grid>
 
-            <ProgressBar x:Name="DownloadBar" Minimum="0" Maximum="100" Visibility="Collapsed" />
+            <!-- Live microphone level while listening -->
+            <StackPanel x:Name="LevelBars" Orientation="Horizontal" Spacing="3" Height="20"
+                        VerticalAlignment="Center" Visibility="Collapsed">
+                <Rectangle x:Name="Bar0" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" VerticalAlignment="Center"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Rectangle x:Name="Bar1" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" VerticalAlignment="Center"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Rectangle x:Name="Bar2" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" VerticalAlignment="Center"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Rectangle x:Name="Bar3" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" VerticalAlignment="Center"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Rectangle x:Name="Bar4" Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" VerticalAlignment="Center"
+                           Fill="{ThemeResource TextFillColorPrimaryBrush}" />
+            </StackPanel>
 
-            <ScrollViewer x:Name="BodyScroller" VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
-                <TextBlock x:Name="BodyText" TextWrapping="Wrap" IsTextSelectionEnabled="True"
-                           LineHeight="20" Margin="0,0,4,0" />
-            </ScrollViewer>
+            <TextBlock x:Name="TitleText" Style="{StaticResource BodyTextBlockStyle}" VerticalAlignment="Center"
+                       TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" MaxLines="1" Visibility="Collapsed" />
 
-            <!-- Footer: shortcut hint left, compact actions right -->
-            <Grid x:Name="Footer" ColumnSpacing="8" Visibility="Collapsed">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock x:Name="HintText" Style="{StaticResource CaptionMutedTextStyle}" VerticalAlignment="Center"
-                           TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="PrimaryButton" Style="{StaticResource CompactAccentButtonStyle}"
-                            Click="OnPrimaryClicked" Visibility="Collapsed" />
-                    <Button x:Name="SecondaryButton" Style="{StaticResource CompactButtonStyle}"
-                            Click="OnSecondaryClicked" Visibility="Collapsed" />
-                </StackPanel>
-            </Grid>
+            <ProgressBar x:Name="DownloadBar" Width="64" Minimum="0" Maximum="100" VerticalAlignment="Center"
+                         Visibility="Collapsed" />
         </StackPanel>
     </Grid>
 </Window>

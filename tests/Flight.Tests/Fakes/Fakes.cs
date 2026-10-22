@@ -29,7 +29,13 @@ public sealed class FakeAudioCapturer : IAudioCapturer
     public bool IsCapturing { get; private set; }
     public int StartCount { get; private set; }
     public int StopCount { get; private set; }
-    public float[] SamplesToReturn { get; set; } = [0.1f, 0.2f, 0.3f];
+
+    /// <summary>One second of audible audio by default, so the speech gate lets it through.</summary>
+    public float[] SamplesToReturn { get; set; } = FakeAudio.Speech();
+
+    public event Action<float>? LevelChanged;
+
+    public void RaiseLevel(float level) => LevelChanged?.Invoke(level);
 
     public void Start()
     {
@@ -43,6 +49,21 @@ public sealed class FakeAudioCapturer : IAudioCapturer
         StopCount++;
         return SamplesToReturn;
     }
+}
+
+/// <summary>Synthetic 16 kHz captures for the speech gate.</summary>
+public static class FakeAudio
+{
+    /// <summary>A 220 Hz tone at 0.1 amplitude — comfortably above the silence floor.</summary>
+    public static float[] Speech(double seconds = 1.0) =>
+        Enumerable.Range(0, (int)(seconds * 16_000))
+            .Select(i => (float)(0.1 * Math.Sin(2 * Math.PI * 220 * i / 16_000)))
+            .ToArray();
+
+    public static float[] Silence(double seconds = 1.0, float noise = 0.001f) =>
+        Enumerable.Range(0, (int)(seconds * 16_000))
+            .Select(i => i % 2 == 0 ? noise : -noise)
+            .ToArray();
 }
 
 public sealed class FakeSpeechToText : ISpeechToText
@@ -101,17 +122,14 @@ public sealed class FakeClipboardWriter : IClipboardWriter
 public sealed class FakeDictationUi : IDictationUi
 {
     public List<string> Events { get; } = [];
-    public string? LastPreviewText { get; private set; }
+    public List<float> Levels { get; } = [];
     public string? LastErrorMessage { get; private set; }
 
     public void ShowCapturing() => Events.Add("capturing");
+    public void ShowLevel(float level) => Levels.Add(level);
     public void ShowProcessing() => Events.Add("processing");
-
-    public void ShowPreview(string cleanedText)
-    {
-        LastPreviewText = cleanedText;
-        Events.Add("preview");
-    }
+    public void ShowCopied() => Events.Add("copied");
+    public void ShowNothingHeard() => Events.Add("nothing-heard");
 
     public void ShowError(string message)
     {
@@ -133,9 +151,15 @@ public sealed class FakeDictationUi : IDictationUi
 public sealed class InMemorySessionRepository : IDictationSessionRepository
 {
     public List<DictationSession> Sessions { get; } = [];
+    public Exception? ExceptionToThrow { get; set; }
 
     public Task<DictationSession> AddAsync(DictationSession session, CancellationToken cancellationToken = default)
     {
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
+
         var stored = session with { Id = Sessions.Count + 1 };
         Sessions.Add(stored);
         return Task.FromResult(stored);
@@ -143,7 +167,6 @@ public sealed class InMemorySessionRepository : IDictationSessionRepository
 
     public Task<IReadOnlyList<DictationSession>> GetAllAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<DictationSession>>(Sessions);
-
 }
 
 public sealed class FakeLlmCompletion : ILlmCompletion
@@ -310,17 +333,6 @@ public sealed class FakeStartupRegistration : Flight.Core.Startup.IStartupRegist
     public void Enable() => IsEnabled = true;
 
     public void Disable() => IsEnabled = false;
-}
-
-public sealed class FakeForegroundWindow : Flight.Core.Toast.IForegroundWindow
-{
-    public nint Current { get; set; }
-
-    public bool TryActivate(nint window)
-    {
-        Current = window;
-        return true;
-    }
 }
 
 public sealed class InMemorySecretStore : ISecretStore

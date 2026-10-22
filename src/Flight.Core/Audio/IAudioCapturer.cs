@@ -6,6 +6,12 @@ namespace Flight.Core.Audio;
 /// </summary>
 public interface IAudioCapturer
 {
+    /// <summary>
+    /// RMS level (0–1) of each captured buffer, for the listening indicator.
+    /// Raised on the capture thread.
+    /// </summary>
+    event Action<float>? LevelChanged;
+
     void Start();
     float[] Stop();
 }

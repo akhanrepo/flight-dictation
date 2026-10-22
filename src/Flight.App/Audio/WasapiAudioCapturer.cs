@@ -14,6 +14,8 @@ public sealed class WasapiAudioCapturer : IAudioCapturer, IDisposable
     private WaveInEvent? _waveIn;
     private List<float>? _samples;
 
+    public event Action<float>? LevelChanged;
+
     public void Start()
     {
         lock (_lock)
@@ -36,6 +38,8 @@ public sealed class WasapiAudioCapturer : IAudioCapturer, IDisposable
 
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
+        double sumOfSquares = 0;
+        var count = 0;
         lock (_lock)
         {
             if (_samples is null)
@@ -45,9 +49,17 @@ public sealed class WasapiAudioCapturer : IAudioCapturer, IDisposable
 
             for (var i = 0; i + 1 < e.BytesRecorded; i += 2)
             {
-                var sample = BitConverter.ToInt16(e.Buffer, i);
-                _samples.Add(sample / 32768f);
+                var sample = BitConverter.ToInt16(e.Buffer, i) / 32768f;
+                _samples.Add(sample);
+                sumOfSquares += sample * sample;
+                count++;
             }
+        }
+
+        // Outside the lock: subscribers marshal to the UI thread.
+        if (count > 0)
+        {
+            LevelChanged?.Invoke((float)Math.Sqrt(sumOfSquares / count));
         }
     }
 

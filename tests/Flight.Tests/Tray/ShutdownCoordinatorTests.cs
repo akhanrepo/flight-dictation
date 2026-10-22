@@ -14,6 +14,7 @@ public class ShutdownCoordinatorTests
     private readonly FakeHotkey _hotkey = new();
     private readonly FakeAudioCapturer _capturer = new();
     private readonly FakeClipboardWriter _clipboard = new();
+    private readonly FakeSpeechToText _stt = new();
     private readonly FakeVocabularyLearningQueue _vocabulary = new();
     private readonly FlightOptions _options = new() { ShutdownVocabularyGrace = TimeSpan.FromMilliseconds(200) };
     private readonly DictationOrchestrator _orchestrator;
@@ -21,7 +22,7 @@ public class ShutdownCoordinatorTests
     public ShutdownCoordinatorTests()
     {
         _orchestrator = new DictationOrchestrator(
-            _hotkey, _capturer, new FakeSpeechToText(), new FakeTextCleaner(), _clipboard,
+            _hotkey, _capturer, _stt, new FakeTextCleaner(), _clipboard,
             new InMemorySessionRepository(), new FakeDictationUi(), _vocabulary,
             new FakeSettingsStore(), _options, NullLogger<DictationOrchestrator>.Instance);
         _orchestrator.Start();
@@ -50,19 +51,19 @@ public class ShutdownCoordinatorTests
         Assert.False(_capturer.IsCapturing);
     }
 
-    // The clipboard is written only on confirm — quitting with a preview up
-    // discards it rather than copying it
+    // Quitting while a dictation is still processing abandons it: its result
+    // never lands on the clipboard after the user asked to quit
     [Fact]
-    public async Task Quit_DiscardsAPendingPreviewWithoutTouchingTheClipboard()
+    public async Task Quit_MidProcessing_NeverWritesTheClipboard()
     {
+        _stt.Delay = TimeSpan.FromSeconds(30);
         _hotkey.Press();
         _hotkey.Release();
-        await _orchestrator.ProcessingTask!;
-        Assert.Equal(DictationState.Preview, _orchestrator.State);
+        Assert.Equal(DictationState.Processing, _orchestrator.State);
 
         await Create().ShutdownAsync();
+        await _orchestrator.ProcessingTask!.WaitAsync(TimeSpan.FromSeconds(5));
 
-        Assert.Equal(DictationState.Idle, _orchestrator.State);
         Assert.Empty(_clipboard.Writes);
     }
 

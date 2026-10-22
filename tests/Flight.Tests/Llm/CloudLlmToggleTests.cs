@@ -89,25 +89,20 @@ public class CloudLlmToggleTests
         Assert.Empty(_cloud.Requests);
     }
 
-    // Criterion: the rest of the pipeline — preview, confirm, clipboard — is
-    // unchanged in cloud mode
+    // Criterion: the rest of the pipeline — automatic copy to the clipboard —
+    // is unchanged in cloud mode
     [Fact]
-    public async Task CloudMode_Leaves_Preview_Confirm_And_Clipboard_Unchanged()
+    public async Task CloudMode_Leaves_The_Clipboard_Path_Unchanged()
     {
         await SetModeAsync(LlmMode.Cloud);
 
         var orchestrator = await DictateAsync();
-        Assert.Equal(DictationState.Preview, orchestrator.State);
-        Assert.Equal("Cloud cleanup.", _ui.LastPreviewText);
-
-        await orchestrator.ConfirmAsync();
 
         Assert.Equal("Cloud cleanup.", _clipboard.LastText);
         Assert.Equal(DictationState.Idle, orchestrator.State);
     }
 
-    // Criterion: cloud dictations record llm_mode="cloud" with a timestamp —
-    // the only record feature #5 needs
+    // Criterion: cloud dictations record llm_mode="cloud" with a timestamp
     [Fact]
     public async Task CloudDictation_Records_CloudMode_With_A_Timestamp()
     {
@@ -115,7 +110,6 @@ public class CloudLlmToggleTests
         var before = DateTimeOffset.UtcNow.AddSeconds(-1);
 
         var orchestrator = await DictateAsync();
-        await orchestrator.ConfirmAsync();
 
         var session = Assert.Single(_sessions.Sessions);
         Assert.Equal("cloud", session.LlmMode);
@@ -126,7 +120,6 @@ public class CloudLlmToggleTests
     public async Task LocalDictation_Still_Records_LocalMode()
     {
         var orchestrator = await DictateAsync();
-        await orchestrator.ConfirmAsync();
 
         Assert.Equal("local", Assert.Single(_sessions.Sessions).LlmMode);
     }
@@ -137,14 +130,12 @@ public class CloudLlmToggleTests
     public async Task ModeToggle_MidSession_Applies_To_The_Next_Dictation()
     {
         var orchestrator = await DictateAsync();
-        await orchestrator.ConfirmAsync();
         Assert.Single(_local.Requests);
 
         // No restart, no new orchestrator.
         await SetModeAsync(LlmMode.Cloud);
 
         await DictateAsync(orchestrator);
-        await orchestrator.ConfirmAsync();
 
         Assert.Single(_cloud.Requests);
         Assert.Equal("cloud", _sessions.Sessions[1].LlmMode);
@@ -162,7 +153,6 @@ public class CloudLlmToggleTests
         _hotkey.Release();
         await SetModeAsync(LlmMode.Cloud);
         await orchestrator.ProcessingTask!;
-        await orchestrator.ConfirmAsync();
 
         Assert.Single(_local.Requests);
         Assert.Empty(_cloud.Requests);
@@ -201,16 +191,15 @@ public class CloudLlmToggleTests
         await SetModeAsync(LlmMode.Local);
 
         await DictateAsync(orchestrator);
-        await orchestrator.ConfirmAsync();
 
         Assert.Equal("Local cleanup.", _clipboard.LastText);
         Assert.Equal("local", Assert.Single(_sessions.Sessions).LlmMode);
     }
 
-    // Criterion: cloud mode is unrestricted here — no cap, no paywall, no
-    // account requirement. Enforcement is entirely feature #5's job.
+    // Feature #11: cloud mode is bring-your-own-key — no cap, no paywall, no
+    // account requirement.
     [Fact]
-    public async Task CloudMode_Is_Unrestricted_In_This_Feature()
+    public async Task CloudMode_Is_Unrestricted()
     {
         await SetModeAsync(LlmMode.Cloud);
         var orchestrator = CreateOrchestrator();
@@ -218,7 +207,6 @@ public class CloudLlmToggleTests
         for (var i = 0; i < 25; i++)
         {
             await DictateAsync(orchestrator);
-            await orchestrator.ConfirmAsync();
         }
 
         Assert.Equal(25, _sessions.Sessions.Count);

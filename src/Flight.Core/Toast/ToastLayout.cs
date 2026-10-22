@@ -16,28 +16,30 @@ public readonly record struct PixelRect(int X, int Y, int Width, int Height)
 public readonly record struct WorkArea(PixelRect Bounds, double Scale);
 
 /// <summary>
-/// Toast dimensions. Everything is designed in DIPs and converted per monitor,
-/// so the toast is the same visual size at 100% and 200% scaling — sizing in
-/// raw pixels is what squeezed the old toast until its text disappeared.
+/// Indicator pill dimensions. Everything is designed in DIPs and converted per
+/// monitor, so the pill is the same visual size at 100% and 200% scaling —
+/// sizing in raw pixels is what once squeezed the old toast until its text
+/// disappeared.
 /// </summary>
 public static class ToastLayout
 {
-    public const double CardWidth = 400;
-    public const double PillWidth = 280;
-    public const double MinHeight = 52;
+    /// <summary>Icon-only states: listening, processing, copied.</summary>
+    public const double CompactWidth = 120;
 
-    /// <summary>Past this the body scrolls inside the card instead of growing.</summary>
-    public const double MaxHeight = 320;
+    /// <summary>States with a message grow to fit it, up to this; the title trims past it.</summary>
+    public const double MaxWidth = 360;
 
-    public static double WidthFor(ToastKind kind) => kind == ToastKind.Pill ? PillWidth : CardWidth;
+    public const double Height = 36;
 
-    /// <summary>Fits the content's measured height into [MinHeight, MaxHeight].</summary>
-    public static double HeightFor(double contentHeight) =>
-        Math.Clamp(Math.Ceiling(contentHeight), MinHeight, MaxHeight);
+    /// <param name="measuredContentWidth">The rendered message's desired width, for text states.</param>
+    public static double WidthFor(ToastView view, double measuredContentWidth) =>
+        view.ShowsText
+            ? Math.Clamp(Math.Ceiling(measuredContentWidth), CompactWidth, MaxWidth)
+            : CompactWidth;
 
     public static int ToPhysical(double dip, double scale) => (int)Math.Ceiling(dip * scale);
 
-    public static PixelSize SizeFor(ToastKind kind, double contentHeight, double scale) => new(
-        ToPhysical(WidthFor(kind), scale),
-        ToPhysical(HeightFor(contentHeight), scale));
+    public static PixelSize SizeFor(ToastView view, double measuredContentWidth, double scale) => new(
+        ToPhysical(WidthFor(view, measuredContentWidth), scale),
+        ToPhysical(Height, scale));
 }

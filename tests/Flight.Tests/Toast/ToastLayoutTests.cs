@@ -3,36 +3,36 @@ using Xunit;
 
 namespace Flight.Tests.Toast;
 
-/// <summary>Feature #7: sizes are DIPs, converted per monitor, and fit the content.</summary>
+/// <summary>Sizes are DIPs, converted per monitor (feature #7), for the pill (feature #9).</summary>
 public class ToastLayoutTests
 {
+    private static readonly ToastView IconOnly = new() { Title = "Listening", Tone = ToastTone.Listening };
+    private static readonly ToastView WithText = new() { Title = "Didn't catch that", ShowsText = true };
+
     // Same visual size at every common Windows scale factor
     [Theory]
-    [InlineData(1.0, 400, 120)]
-    [InlineData(1.25, 500, 150)]
-    [InlineData(1.5, 600, 180)]
-    [InlineData(2.0, 800, 240)]
+    [InlineData(1.0, 120, 36)]
+    [InlineData(1.25, 150, 45)]
+    [InlineData(1.5, 180, 54)]
+    [InlineData(2.0, 240, 72)]
     public void Layout_ConvertsDipsForTheMonitorScale(double scale, int width, int height)
     {
-        var size = ToastLayout.SizeFor(ToastKind.Card, contentHeight: 120, scale);
-
-        Assert.Equal(new PixelSize(width, height), size);
+        Assert.Equal(new PixelSize(width, height), ToastLayout.SizeFor(IconOnly, 0, scale));
     }
 
     [Fact]
-    public void Layout_PillsAreNarrowerThanCards()
+    public void Layout_IconOnlyStatesAreCompactWhateverTheMeasurement()
     {
-        Assert.Equal(280, ToastLayout.WidthFor(ToastKind.Pill));
-        Assert.Equal(400, ToastLayout.WidthFor(ToastKind.Card));
+        Assert.Equal(ToastLayout.CompactWidth, ToastLayout.WidthFor(IconOnly, 500));
     }
 
     [Theory]
-    [InlineData(10, 52)]   // never smaller than a pill
-    [InlineData(140, 140)] // fits the content
-    [InlineData(140.2, 141)] // rounds up so nothing is clipped by a fraction
-    [InlineData(2000, 320)] // capped; the body scrolls inside
-    public void Layout_HeightFitsTheContentWithinBounds(double content, double expected)
+    [InlineData(10, 120)]     // never narrower than the compact pill
+    [InlineData(200, 200)]    // fits the message
+    [InlineData(200.2, 201)]  // rounds up so nothing is clipped by a fraction
+    [InlineData(2000, 360)]   // capped; the title trims with an ellipsis
+    public void Layout_MessagesGrowToFitWithinBounds(double measured, double expected)
     {
-        Assert.Equal(expected, ToastLayout.HeightFor(content));
+        Assert.Equal(expected, ToastLayout.WidthFor(WithText, measured));
     }
 }

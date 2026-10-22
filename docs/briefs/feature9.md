@@ -13,10 +13,10 @@ A confirmation step on every dictation was friction that users skipped through. 
 | Processing | small spinner |
 | Copied | ✓, then fades out after about 0.8 s |
 | Nothing heard | muted "Didn't catch that", hides after about 1.5 s |
-| Error | widens to a one-line message, hides after about 5 s, click to dismiss |
+| Error | widens to a one-line message (full text in the tooltip), hides after about 6 s |
 | First-run download | progress bar + "Downloading model 42%" |
 
-The pill is roughly 120×36 DIPs (wider for messages), fully rounded, acrylic, with no buttons. It can be dragged, and its position is remembered (as in feature 7).
+The pill is 120×36 DIPs (up to 360 wide for messages), acrylic with Windows 11's rounded corners, and has no buttons: the whole surface drags it, and its position is remembered (as in feature 7). It is a non-activating window, so even clicking or dragging it leaves focus where it was.
 
 ## Acceptance criteria
 - On a successful dictation the cleaned (or translated) text is written to the clipboard without any user action. Then the session is saved, then it is handed to vocabulary learning, in that order.
@@ -25,6 +25,7 @@ The pill is roughly 120×36 DIPs (wider for messages), fully rounded, acrylic, w
 - Real text that happens to contain brackets is kept.
 - Silent audio (below an energy floor) skips speech-to-text and cleanup entirely.
 - An error (timeout, cloud failure) leaves the clipboard untouched and shows the message in the pill.
+- Quitting while a dictation is processing abandons it without touching the clipboard.
 - While listening, the pill receives the microphone level; outside listening, level updates are ignored.
 - Copied, nothing-heard and error states hide themselves.
 

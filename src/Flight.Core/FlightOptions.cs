@@ -21,6 +21,19 @@ public class FlightOptions
     /// <summary>Virtual-key code of the push-to-talk key. VK_RMENU = Right Alt.</summary>
     public int PushToTalkVirtualKey { get; set; } = 0xA5;
 
+    /// <summary>
+    /// Captures shorter than this are treated as an accidental tap of the
+    /// hotkey: nothing runs and nothing is shown.
+    /// </summary>
+    public TimeSpan MinimumCaptureDuration { get; set; } = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>
+    /// RMS level (0–1) a 30 ms window must reach to count as sound. Low on
+    /// purpose: a quiet laptop mic must not lose a real dictation; whisper's
+    /// own non-speech markers catch what slips through.
+    /// </summary>
+    public float SilenceThreshold { get; set; } = 0.005f;
+
     /// <summary>Hard ceiling on STT + LLM processing before the pipeline reports an error.</summary>
     public TimeSpan ProcessingTimeout { get; set; } = TimeSpan.FromMinutes(2);
 

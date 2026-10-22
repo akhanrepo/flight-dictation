@@ -174,8 +174,7 @@ public sealed class TrayPresenter : IDisposable
         {
             DictationState.Capturing => "Listening…",
             DictationState.Processing => "Processing…",
-            DictationState.Preview => "Preview ready — Enter to copy",
-            DictationState.Error => "Something went wrong — see the Flight window",
+            DictationState.Error => "Something went wrong — see the indicator",
             _ when _orchestrator.IsPaused => "Paused — Right Alt is off",
             _ => "Ready — hold Right Alt to dictate",
         };

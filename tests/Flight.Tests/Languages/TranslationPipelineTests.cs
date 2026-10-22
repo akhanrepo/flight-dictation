@@ -89,7 +89,8 @@ public class TranslationPipelineTests
 
         var orchestrator = await DictateAsync();
 
-        Assert.Equal(DictationState.Preview, orchestrator.State);
+        Assert.Equal(DictationState.Idle, orchestrator.State);
+        Assert.Single(_clipboard.Writes);
         Assert.False(_cleaner.ReceivedRequest!.RequiresTranslation);
     }
 
@@ -114,56 +115,38 @@ public class TranslationPipelineTests
         await SetLanguagesAsync("en", "ar");
         _cleaner.CleanedToReturn = "مرحبا بالعالم";
 
-        var orchestrator = await DictateAsync();
+        await DictateAsync();
 
         Assert.Equal("en", _stt.ReceivedLanguage);
         Assert.Equal("ar", _cleaner.ReceivedRequest!.TargetLanguage);
-        Assert.Equal("مرحبا بالعالم", _ui.LastPreviewText);
-        await orchestrator.ConfirmAsync();
         Assert.Equal("مرحبا بالعالم", _clipboard.LastText);
     }
 
-    // Criterion: the preview shows the translated text, not the raw
-    // source-language transcript
+    // Criterion: the translated cleaned text is what gets copied, not the
+    // raw source-language transcript
     [Fact]
-    public async Task Preview_Shows_Translated_Text_Not_The_Raw_Transcript()
+    public async Task Copies_The_Translated_Text_Not_The_Raw_Transcript()
     {
         await SetLanguagesAsync("es", "en");
         _stt.TranscriptToReturn = "eh hola eh que tal el proyecto";
         _cleaner.CleanedToReturn = "How is the project going?";
 
-        await DictateAsync();
-
-        Assert.Equal("How is the project going?", _ui.LastPreviewText);
-        Assert.DoesNotContain("hola", _ui.LastPreviewText);
-    }
-
-    // Criterion: confirming copies the translated cleaned text, same
-    // confirm/dismiss behaviour as feature #1
-    [Fact]
-    public async Task Confirm_Copies_The_Translated_Text()
-    {
-        await SetLanguagesAsync("fr", "en");
-        _stt.TranscriptToReturn = "euh bonjour le monde";
-        _cleaner.CleanedToReturn = "Hello, world.";
-
         var orchestrator = await DictateAsync();
-        await orchestrator.ConfirmAsync();
 
-        Assert.Equal("Hello, world.", _clipboard.LastText);
+        Assert.Equal(["How is the project going?"], _clipboard.Writes);
         Assert.Equal(DictationState.Idle, orchestrator.State);
     }
 
     [Fact]
-    public async Task Dismiss_Leaves_The_Clipboard_Untouched_When_Translating()
+    public async Task Failure_Leaves_The_Clipboard_Untouched_When_Translating()
     {
         await SetLanguagesAsync("fr", "en");
+        _cleaner.ExceptionToThrow = new InvalidOperationException("translation failed");
 
         var orchestrator = await DictateAsync();
-        orchestrator.Reject();
 
         Assert.Empty(_clipboard.Writes);
-        Assert.Equal(DictationState.Idle, orchestrator.State);
+        Assert.Equal(DictationState.Error, orchestrator.State);
     }
 
     // Criterion: session rows carry source_language and target_language for
@@ -181,8 +164,7 @@ public class TranslationPipelineTests
     {
         await SetLanguagesAsync(source, target);
 
-        var orchestrator = await DictateAsync();
-        await orchestrator.ConfirmAsync();
+        await DictateAsync();
 
         var session = Assert.Single(_sessions.Sessions);
         Assert.Equal(source, session.SourceLanguage);
@@ -200,7 +182,6 @@ public class TranslationPipelineTests
         _hotkey.Press();
         _hotkey.Release();
         await orchestrator.ProcessingTask!;
-        await orchestrator.ConfirmAsync();
         Assert.Equal("en", _stt.ReceivedLanguage);
 
         // No restart, no new orchestrator.
@@ -209,7 +190,6 @@ public class TranslationPipelineTests
         _hotkey.Press();
         _hotkey.Release();
         await orchestrator.ProcessingTask!;
-        await orchestrator.ConfirmAsync();
 
         Assert.Equal("zh", _stt.ReceivedLanguage);
         Assert.Equal("zh", _sessions.Sessions[1].SourceLanguage);
@@ -228,7 +208,6 @@ public class TranslationPipelineTests
         _hotkey.Release();
         await SetLanguagesAsync("zh", "en");
         await orchestrator.ProcessingTask!;
-        await orchestrator.ConfirmAsync();
 
         Assert.Equal("fr", _sessions.Sessions[0].SourceLanguage);
     }

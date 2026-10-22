@@ -12,9 +12,11 @@ namespace Flight.Core.Dictation;
 
 /// <summary>
 /// State machine for the core dictation loop:
-/// Idle → Capturing (hotkey down) → Processing (hotkey up) → Preview → Idle (confirm/reject).
-/// Any failure lands in Error, surfaced through the UI — never silent.
-/// The clipboard is written in exactly one code path: <see cref="ConfirmAsync"/>.
+/// Idle → Capturing (hotkey down) → Processing (hotkey up) → Idle, with the
+/// result copied to the clipboard on the way out. Any failure lands in Error,
+/// surfaced through the UI — never silent.
+/// The clipboard is written in exactly one place: after a successful,
+/// non-empty result in <see cref="ProcessAsync"/>.
 /// </summary>
 public class DictationOrchestrator : IDisposable
 {
@@ -30,9 +32,8 @@ public class DictationOrchestrator : IDisposable
     private readonly FlightOptions _options;
     private readonly ILogger<DictationOrchestrator> _logger;
 
-    private string? _pendingRawTranscript;
-    private string? _pendingCleanedText;
-    private FlightSettings? _pendingSettings;
+    // Cancelled on Dispose, so quitting mid-processing never writes the clipboard.
+    private readonly CancellationTokenSource _shutdown = new();
 
     private DictationState _state = DictationState.Idle;
 
@@ -113,6 +114,7 @@ public class DictationOrchestrator : IDisposable
 
     public void Start()
     {
+        _capturer.LevelChanged += OnLevelChanged;
         _hotkey.Pressed += OnHotkeyPressed;
         _hotkey.Released += OnHotkeyReleased;
         _hotkey.Start();
@@ -130,6 +132,14 @@ public class DictationOrchestrator : IDisposable
         _ui.ShowCapturing();
     }
 
+    private void OnLevelChanged(float level)
+    {
+        if (State == DictationState.Capturing)
+        {
+            _ui.ShowLevel(level);
+        }
+    }
+
     private void OnHotkeyReleased()
     {
         if (State != DictationState.Capturing)
@@ -144,6 +154,19 @@ public class DictationOrchestrator : IDisposable
         // in-flight dictation can never see a half-applied change.
         var settings = _settings.Current;
 
+        ProcessingTask = Task.CompletedTask;
+        switch (SpeechGate.Evaluate(samples, _options.MinimumCaptureDuration, _options.SilenceThreshold))
+        {
+            case CaptureVerdict.TooShort:
+                // An accidental tap: no models run and nothing is said about it.
+                ReturnToIdle();
+                return;
+            case CaptureVerdict.Silent:
+                // Silence would cost a full STT pass to come back as [BLANK_AUDIO].
+                NothingHeard();
+                return;
+        }
+
         State = DictationState.Processing;
         _ui.ShowProcessing();
         ProcessingTask = ProcessAsync(samples, settings);
@@ -151,90 +174,95 @@ public class DictationOrchestrator : IDisposable
 
     private async Task ProcessAsync(float[] samples, FlightSettings settings)
     {
+        string raw;
+        string cleaned;
         try
         {
             using var timeout = new CancellationTokenSource(_options.ProcessingTimeout);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, _shutdown.Token);
+            var token = linked.Token;
 
             // STT runs in the user's selected source language, not an
-            // auto-detected one.
-            var raw = await _stt
-                .TranscribeAsync(samples, settings.SourceLanguage, timeout.Token)
-                .WaitAsync(timeout.Token);
+            // auto-detected one. Whisper's non-speech markers are dropped.
+            raw = TranscriptFilter.Clean(await _stt
+                .TranscribeAsync(samples, settings.SourceLanguage, token)
+                .WaitAsync(token));
+
+            if (raw.Length == 0)
+            {
+                NothingHeard();
+                return;
+            }
 
             // When source and target match this is cleanup only; when they
             // differ the same step also translates.
-            var cleaned = await _cleaner
+            cleaned = (await _cleaner
                 .CleanAsync(
                     new TranscriptCleanupRequest(
                         raw,
                         settings.SourceLanguage,
                         settings.TargetLanguage,
                         settings.LlmMode),
-                    timeout.Token)
-                .WaitAsync(timeout.Token);
-
-            _pendingRawTranscript = raw;
-            _pendingCleanedText = cleaned;
-            _pendingSettings = settings;
-            State = DictationState.Preview;
-            _ui.ShowPreview(cleaned);
+                    token)
+                .WaitAsync(token)).Trim();
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            // Quitting: drop the result without touching the clipboard or the UI.
+            return;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Dictation processing failed");
-            _pendingRawTranscript = null;
-            _pendingCleanedText = null;
-            _pendingSettings = null;
             State = DictationState.Error;
             _ui.ShowError(ex is OperationCanceledException
                 ? "Processing timed out."
                 : $"Processing failed: {ex.Message}");
+            return;
         }
+
+        if (cleaned.Length == 0)
+        {
+            NothingHeard();
+            return;
+        }
+
+        await DeliverAsync(raw, cleaned, settings);
     }
 
     /// <summary>
-    /// User confirmed the preview: copy to clipboard, persist the session, then
-    /// hand it to vocabulary learning. That order is deliberate — the clipboard
-    /// write is never behind extraction work.
+    /// Copy, then persist, then hand to vocabulary learning. That order is
+    /// deliberate: the text the user is waiting to paste is never behind a
+    /// database write or extraction work.
     /// </summary>
-    public async Task ConfirmAsync()
+    private async Task DeliverAsync(string raw, string cleaned, FlightSettings settings)
     {
-        if (State != DictationState.Preview
-            || _pendingCleanedText is null
-            || _pendingRawTranscript is null
-            || _pendingSettings is null)
+        // The cleaned, target-language text — not the raw source-language transcript.
+        _clipboard.SetText(cleaned);
+        State = DictationState.Idle;
+        _ui.ShowCopied();
+
+        try
         {
-            return;
+            var stored = await _sessions.AddAsync(new DictationSession
+            {
+                RawTranscript = raw,
+                CleanedOutput = cleaned,
+                SourceLanguage = settings.SourceLanguage,
+                TargetLanguage = settings.TargetLanguage,
+                // Records which engine actually produced this text.
+                LlmMode = settings.LlmMode.ToStorageValue(),
+            });
+
+            // Fire-and-forget by contract: Enqueue returns immediately.
+            _vocabularyLearning.Enqueue(stored);
         }
-
-        // The preview showed — and this copies — the cleaned, target-language
-        // text, not the raw source-language transcript.
-        _clipboard.SetText(_pendingCleanedText);
-        var stored = await _sessions.AddAsync(new DictationSession
+        catch (Exception ex)
         {
-            RawTranscript = _pendingRawTranscript,
-            CleanedOutput = _pendingCleanedText,
-            SourceLanguage = _pendingSettings.SourceLanguage,
-            TargetLanguage = _pendingSettings.TargetLanguage,
-            // Records which engine actually produced this text.
-            LlmMode = _pendingSettings.LlmMode.ToStorageValue(),
-        });
-
-        // Fire-and-forget by contract: Enqueue returns immediately.
-        _vocabularyLearning.Enqueue(stored);
-
-        Reset();
-    }
-
-    /// <summary>User dismissed the preview: discard everything, clipboard untouched.</summary>
-    public void Reject()
-    {
-        if (State != DictationState.Preview)
-        {
-            return;
+            // The user already has their text; losing one history row isn't
+            // worth an error over it.
+            _logger.LogError(ex, "Couldn't save the dictation session");
         }
-
-        Reset();
     }
 
     /// <summary>Dismiss an error state back to idle.</summary>
@@ -245,14 +273,17 @@ public class DictationOrchestrator : IDisposable
             return;
         }
 
-        Reset();
+        ReturnToIdle();
     }
 
-    private void Reset()
+    private void NothingHeard()
     {
-        _pendingRawTranscript = null;
-        _pendingCleanedText = null;
-        _pendingSettings = null;
+        State = DictationState.Idle;
+        _ui.ShowNothingHeard();
+    }
+
+    private void ReturnToIdle()
+    {
         State = DictationState.Idle;
         _ui.Hide();
     }
@@ -261,6 +292,8 @@ public class DictationOrchestrator : IDisposable
     {
         _hotkey.Pressed -= OnHotkeyPressed;
         _hotkey.Released -= OnHotkeyReleased;
+        _capturer.LevelChanged -= OnLevelChanged;
+        _shutdown.Cancel();
 
         // Quitting mid-capture must not leave the microphone open.
         if (State == DictationState.Capturing)

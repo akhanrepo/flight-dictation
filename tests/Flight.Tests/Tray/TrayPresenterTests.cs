@@ -63,7 +63,7 @@ public class TrayPresenterTests
 
         // The fakes finish instantly, so check the sequence the tray went through.
         Assert.Equal(
-            ["Listening…", "Processing…", "Preview ready — Enter to copy"],
+            ["Listening…", "Processing…", "Ready — hold Right Alt to dictate"],
             seen.Select(s => s.StatusLine));
         Assert.Equal(
             [TrayIconKind.Listening, TrayIconKind.Normal, TrayIconKind.Normal],

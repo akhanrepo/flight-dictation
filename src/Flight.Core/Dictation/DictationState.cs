@@ -5,6 +5,5 @@ public enum DictationState
     Idle,
     Capturing,
     Processing,
-    Preview,
     Error,
 }

@@ -51,8 +51,6 @@ public static class AppHost
         builder.Services.AddSingleton<ToastPresenter>();
         builder.Services.AddSingleton<IDictationUi>(sp => sp.GetRequiredService<ToastPresenter>());
         builder.Services.AddSingleton<IToastPositionStore, JsonToastPositionStore>();
-        // Needs the shell's IForegroundWindow.
-        builder.Services.AddSingleton<FocusReturn>();
 
         // Vocabulary (feature #2). The embedding generator is platform-neutral
         // and model-free by default, so this pipeline works before the GGUF has

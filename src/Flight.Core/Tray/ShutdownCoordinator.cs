@@ -6,8 +6,8 @@ namespace Flight.Core.Tray;
 
 /// <summary>
 /// The Quit sequence. Keeps the dictation invariants on the way out: a
-/// pending preview is discarded (the clipboard is written only on confirm),
-/// and confirmed dictations get a bounded chance to reach vocabulary learning.
+/// dictation still processing is abandoned without touching the clipboard,
+/// and finished dictations get a bounded chance to reach vocabulary learning.
 /// </summary>
 public sealed class ShutdownCoordinator
 {
@@ -30,12 +30,8 @@ public sealed class ShutdownCoordinator
 
     public async Task ShutdownAsync()
     {
-        if (_orchestrator.State == DictationState.Preview)
-        {
-            _orchestrator.Reject();
-        }
-
-        // Unhooks the hotkey and stops any capture in progress.
+        // Unhooks the hotkey, stops any capture in progress, and cancels any
+        // processing so its result is never copied after Quit.
         _orchestrator.Dispose();
 
         var idle = _vocabulary.WaitForIdleAsync();
