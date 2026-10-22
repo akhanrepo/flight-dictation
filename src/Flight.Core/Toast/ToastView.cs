@@ -24,8 +24,6 @@ public enum ToastAction
 {
     Copy,
     Dismiss,
-    Subscribe,
-    KeepLocal,
 }
 
 /// <summary>

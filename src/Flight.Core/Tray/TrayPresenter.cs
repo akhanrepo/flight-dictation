@@ -108,9 +108,6 @@ public sealed class TrayPresenter : IDisposable
             case TrayCommand.Settings:
                 _shell.OpenSettings();
                 break;
-            case TrayCommand.Account:
-                _shell.OpenAccount();
-                break;
             case TrayCommand.RestartToUpdate:
                 if (_updates.StagedVersion is not null)
                 {
@@ -152,7 +149,6 @@ public sealed class TrayPresenter : IDisposable
             TrayMenuItem.Separator,
             new(TrayCommand.PauseResume, _orchestrator.IsPaused ? "Resume dictation" : "Pause dictation"),
             new(TrayCommand.Settings, "Settings…"),
-            new(TrayCommand.Account, "Account & subscription…"),
             TrayMenuItem.Separator,
             new(TrayCommand.StartWithWindows, "Start with Windows",
                 Enabled: _startup.IsAvailable, Checked: _startup.IsAvailable && _startup.IsEnabled),

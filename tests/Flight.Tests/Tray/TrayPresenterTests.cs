@@ -128,7 +128,7 @@ public class TrayPresenterTests
             .ToArray();
 
         Assert.Equal(
-            [TrayCommand.None, TrayCommand.PauseResume, TrayCommand.Settings, TrayCommand.Account,
+            [TrayCommand.None, TrayCommand.PauseResume, TrayCommand.Settings,
              TrayCommand.StartWithWindows, TrayCommand.Quit],
             commands);
         Assert.False(CreateReady().State.Menu[0].Enabled); // the status line isn't clickable
@@ -144,7 +144,6 @@ public class TrayPresenterTests
 
     [Theory]
     [InlineData(TrayCommand.Settings, "settings")]
-    [InlineData(TrayCommand.Account, "account")]
     [InlineData(TrayCommand.Quit, "quit")]
     public void Tray_ShellCommandsGoToTheShell(TrayCommand command, string expected)
     {

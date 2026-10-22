@@ -64,7 +64,8 @@ public class BrandAssetsTests
         var projectDir = RepoPaths.Combine("src", "Flight.App");
         var project = System.Xml.Linq.XDocument.Load(Path.Combine(projectDir, "Flight.App.csproj"));
 
-        var icon = project.Descendants("ApplicationIcon").Single().Value;
+        // MSBuild paths use '\'; normalise so the check also runs on Linux/macOS.
+        var icon = project.Descendants("ApplicationIcon").Single().Value.Replace('\\', Path.DirectorySeparatorChar);
         Assert.True(File.Exists(Path.GetFullPath(Path.Combine(projectDir, icon))), $"ApplicationIcon {icon} not found");
 
         var shipped = project.Descendants("Content")

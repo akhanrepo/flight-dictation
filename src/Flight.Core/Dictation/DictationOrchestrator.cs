@@ -1,6 +1,5 @@
 using Flight.Core.Audio;
 using Flight.Core.Clipboard;
-using Flight.Core.Entitlement;
 using Flight.Core.Input;
 using Flight.Core.Llm;
 using Flight.Core.Settings;
@@ -180,17 +179,6 @@ public class DictationOrchestrator : IDisposable
             State = DictationState.Preview;
             _ui.ShowPreview(cleaned);
         }
-        catch (EntitlementRequiredException ex)
-        {
-            // Cloud was blocked before any API call was made. Local mode is
-            // untouched and still available, which the prompt says.
-            _logger.LogInformation("Cloud dictation blocked: {Status}", ex.Decision.Status);
-            _pendingRawTranscript = null;
-            _pendingCleanedText = null;
-            _pendingSettings = null;
-            State = DictationState.Error;
-            _ui.ShowUpgradeRequired(ex.Decision);
-        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Dictation processing failed");
@@ -228,8 +216,7 @@ public class DictationOrchestrator : IDisposable
             CleanedOutput = _pendingCleanedText,
             SourceLanguage = _pendingSettings.SourceLanguage,
             TargetLanguage = _pendingSettings.TargetLanguage,
-            // Records which engine actually produced this text. Feature #5
-            // reads nothing but these rows to compute the cloud trial window.
+            // Records which engine actually produced this text.
             LlmMode = _pendingSettings.LlmMode.ToStorageValue(),
         });
 

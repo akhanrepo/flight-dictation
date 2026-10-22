@@ -1,5 +1,4 @@
 using Flight.Core.Dictation;
-using Flight.Core.Entitlement;
 using Flight.Core.Models;
 
 namespace Flight.Core.Toast;
@@ -63,16 +62,6 @@ public sealed class ToastPresenter : IDictationUi
         Body = message,
         Hint = "Esc to dismiss",
         Primary = ToastAction.Dismiss,
-        TakesFocus = true,
-    });
-
-    public void ShowUpgradeRequired(EntitlementDecision decision) => Show(new ToastView
-    {
-        Kind = ToastKind.Card,
-        Title = decision.OffersUpgrade ? "Cloud mode needs a subscription" : "Cloud mode is paused",
-        Body = decision.Message,
-        Primary = decision.OffersUpgrade ? ToastAction.Subscribe : ToastAction.KeepLocal,
-        Secondary = decision.OffersUpgrade ? ToastAction.KeepLocal : null,
         TakesFocus = true,
     });
 

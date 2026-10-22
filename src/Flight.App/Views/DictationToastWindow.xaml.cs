@@ -39,9 +39,6 @@ public sealed partial class DictationToastWindow : Window
     /// <summary>Opens the settings window. Supplied by App, which owns the DI container.</summary>
     public Action? OpenSettings { get; set; }
 
-    /// <summary>Starts the subscribe flow (account, then Stripe checkout). Supplied by App.</summary>
-    public Action? StartUpgrade { get; set; }
-
     public DictationToastWindow(ToastPresenter presenter, FocusReturn focus, IToastPositionStore positions)
     {
         _presenter = presenter;
@@ -181,8 +178,6 @@ public sealed partial class DictationToastWindow : Window
         {
             ToastAction.Copy => "Copy",
             ToastAction.Dismiss => "Dismiss",
-            ToastAction.Subscribe => "Subscribe",
-            ToastAction.KeepLocal => "Keep using local",
             _ => null,
         };
         button.Tag = action;
@@ -316,12 +311,7 @@ public sealed partial class DictationToastWindow : Window
             case ToastAction.Copy:
                 await CopyAsync();
                 break;
-            case ToastAction.Subscribe:
-                StartUpgrade?.Invoke();
-                Dismiss();
-                break;
             case ToastAction.Dismiss:
-            case ToastAction.KeepLocal:
                 Dismiss();
                 break;
         }

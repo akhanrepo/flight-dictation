@@ -33,26 +33,6 @@ public class SqliteDictationSessionRepository : IDictationSessionRepository
         return Task.FromResult(session with { Id = id });
     }
 
-    public Task<DateTimeOffset?> GetEarliestCloudDictationAsync(CancellationToken cancellationToken = default)
-    {
-        using var connection = _database.OpenConnection();
-        using var command = connection.CreateCommand();
-
-        // MIN over the ISO-8601 round-trip strings is a correct chronological
-        // MIN: the format is fixed-width and lexicographically ordered.
-        command.CommandText = """
-            SELECT MIN(created_at)
-            FROM dictation_sessions
-            WHERE llm_mode = 'cloud';
-            """;
-
-        var result = command.ExecuteScalar();
-        return Task.FromResult<DateTimeOffset?>(
-            result is string value && value.Length > 0
-                ? DateTimeOffset.Parse(value, CultureInfo.InvariantCulture)
-                : null);
-    }
-
     public Task<IReadOnlyList<DictationSession>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         using var connection = _database.OpenConnection();

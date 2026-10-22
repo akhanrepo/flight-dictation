@@ -30,31 +30,6 @@ public class FlightOptions
     /// </summary>
     public TimeSpan ShutdownVocabularyGrace { get; set; } = TimeSpan.FromSeconds(3);
 
-    /// <summary>Cloud trial length, measured from the first cloud dictation.</summary>
-    public TimeSpan CloudTrialDuration { get; set; } = TimeSpan.FromDays(30);
-
-    /// <summary>
-    /// How stale a cached entitlement may get before the app tries to refresh
-    /// it. The PRD leaves this open; a day is short enough that a cancellation
-    /// is picked up promptly and long enough that launches aren't
-    /// network-bound.
-    /// </summary>
-    public TimeSpan EntitlementRefreshInterval { get; set; } = TimeSpan.FromDays(1);
-
-    /// <summary>
-    /// How long a cached entitlement stays usable when Supabase can't be
-    /// reached. Covers a normal trip offline without letting a cancelled
-    /// subscription run indefinitely. Past it, cloud fails closed; local is
-    /// never affected.
-    /// </summary>
-    public TimeSpan EntitlementOfflineGrace { get; set; } = TimeSpan.FromDays(7);
-
-    /// <summary>Supabase project URL. Shipped in Flight.App's appsettings.json.</summary>
-    public Uri? SupabaseUrl { get; set; }
-
-    /// <summary>Supabase anon/publishable key. Public by design, not a secret.</summary>
-    public string? SupabaseAnonKey { get; set; }
-
     /// <summary>
     /// Where installed copies look for new releases: a local folder of
     /// <c>vpk pack</c> output (personal testing) or a public GitHub repo URL.

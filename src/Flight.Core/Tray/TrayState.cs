@@ -7,7 +7,6 @@ public enum TrayCommand
     None,
     PauseResume,
     Settings,
-    Account,
     StartWithWindows,
     RestartToUpdate,
     Quit,

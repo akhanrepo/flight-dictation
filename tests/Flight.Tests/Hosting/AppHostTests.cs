@@ -50,23 +50,21 @@ public class AppHostTests
     }
 
     [Fact]
-    public void AppHost_BindsSupabaseSettingsFromConfiguration()
+    public void AppHost_BindsSettingsFromConfiguration()
     {
-        // The shell ships appsettings.json with the backend URL and publishable
-        // key; without binding, every account call fails as "not configured".
+        // The shell ships appsettings.json (and Flight__* environment variables
+        // override it); without binding, the update feed would be ignored.
         using var host = AppHost.Build(configureConfiguration: config => config.AddInMemoryCollection(
             new Dictionary<string, string?>
             {
-                ["Flight:SupabaseUrl"] = "https://example.supabase.co/",
-                ["Flight:SupabaseAnonKey"] = "sb_publishable_test",
                 ["Flight:UpdateFeed"] = @"C:/releases",
+                ["Flight:CloudLlmModel"] = "deepseek-chat",
             }));
 
         var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
 
-        Assert.Equal(new Uri("https://example.supabase.co/"), options.SupabaseUrl);
-        Assert.Equal("sb_publishable_test", options.SupabaseAnonKey);
         Assert.Equal(@"C:/releases", options.UpdateFeed);
+        Assert.Equal("deepseek-chat", options.CloudLlmModel);
     }
 
     // A malformed appsettings.json crashes the shell before any window opens,
@@ -79,7 +77,8 @@ public class AppHostTests
         using var host = AppHost.Build(configureConfiguration: config => config.AddJsonFile(appSettings));
         var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
 
-        Assert.Equal("kcemhjdmvunqcnoqwpyr.supabase.co", options.SupabaseUrl?.Host);
+        // The public build updates from GitHub Releases, never a personal path.
+        Assert.Equal("https://github.com/akhanrepo/flight-dictation", options.UpdateFeed);
     }
 
     [Fact]
@@ -100,7 +99,6 @@ public class AppHostTests
         var options = host.Services.GetRequiredService<Flight.Core.FlightOptions>();
 
         Assert.Equal("ggml-base-q5_1.bin", options.SttModel.FileName);
-        Assert.Equal(TimeSpan.FromDays(30), options.CloudTrialDuration);
         Assert.Null(options.UpdateFeed);
     }
 }

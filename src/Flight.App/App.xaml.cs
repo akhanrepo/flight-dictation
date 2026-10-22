@@ -5,10 +5,7 @@ using Flight.App.Security;
 using Flight.App.Views;
 using Flight.App.Win32;
 using Flight.Core;
-using Flight.Core.Accounts;
 using Flight.Core.Audio;
-using Flight.Core.Billing;
-using Flight.Core.Entitlement;
 using Flight.Core.Clipboard;
 using Flight.Core.Dictation;
 using Flight.Core.Hosting;
@@ -55,7 +52,6 @@ public partial class App : Application, IShellActions
             services.AddSingleton<LlamaCompletion>();
             services.AddSingleton(sp => new LocalLlmEngine(sp.GetRequiredService<LlamaCompletion>()));
             services.AddSingleton<ISecretStore, DpapiSecretStore>();
-            services.AddSingleton<IUrlLauncher, BrowserUrlLauncher>();
             services.AddSingleton<IAppUpdater, VelopackAppUpdater>();
             services.AddSingleton<IStartupRegistration, RegistryStartupRegistration>();
             services.AddSingleton<IShellActions>(this);
@@ -112,7 +108,6 @@ public partial class App : Application, IShellActions
         _orchestrator = Host.Services.GetRequiredService<DictationOrchestrator>();
         _window.Orchestrator = _orchestrator;
         _window.OpenSettings = ShowSettings;
-        _window.StartUpgrade = ShowAccount;
 
         // The tray comes first, so Flight is visibly running (and quittable)
         // even during the first-run model download.
@@ -187,8 +182,6 @@ public partial class App : Application, IShellActions
 
     void IShellActions.OpenSettings() => ShowSettings();
 
-    void IShellActions.OpenAccount() => ShowAccount();
-
     async void IShellActions.Quit()
     {
         if (await ShutDownAsync())
@@ -235,21 +228,6 @@ public partial class App : Application, IShellActions
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         }
         _settingsWindow.Activate();
-    }
-
-    private AccountWindow? _accountWindow;
-
-    private void ShowAccount()
-    {
-        if (_accountWindow is null)
-        {
-            _accountWindow = new AccountWindow(
-                Host.Services.GetRequiredService<IAccountSession>(),
-                Host.Services.GetRequiredService<IBillingPortal>(),
-                Host.Services.GetRequiredService<IEntitlementService>());
-            _accountWindow.Closed += (_, _) => _accountWindow = null;
-        }
-        _accountWindow.Activate();
     }
 
     /// <summary>

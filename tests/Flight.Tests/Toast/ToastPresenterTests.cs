@@ -1,4 +1,3 @@
-using Flight.Core.Entitlement;
 using Flight.Core.Models;
 using Flight.Core.Toast;
 using Xunit;
@@ -55,29 +54,6 @@ public class ToastPresenterTests
         Assert.Equal(ToastTone.Error, _toast.View.Tone);
         Assert.Equal("The cloud model didn't respond.", _toast.View.Body);
         Assert.Equal(ToastAction.Dismiss, _toast.View.Primary);
-        Assert.Null(_toast.View.Secondary);
-    }
-
-    [Fact]
-    public void Toast_UpgradeOffersSubscribeAndKeepLocal()
-    {
-        _toast.ShowUpgradeRequired(new EntitlementDecision(
-            false, EntitlementStatus.TrialExpired, "Your trial has ended.", OffersUpgrade: true));
-
-        Assert.Equal("Cloud mode needs a subscription", _toast.View.Title);
-        Assert.Equal(ToastAction.Subscribe, _toast.View.Primary);
-        Assert.Equal(ToastAction.KeepLocal, _toast.View.Secondary);
-    }
-
-    // "Can't verify" isn't fixed by paying, so there's no Subscribe button
-    [Fact]
-    public void Toast_UnverifiableOffersOnlyKeepLocal()
-    {
-        _toast.ShowUpgradeRequired(new EntitlementDecision(
-            false, EntitlementStatus.Unverifiable, "Can't verify your subscription."));
-
-        Assert.Equal("Cloud mode is paused", _toast.View.Title);
-        Assert.Equal(ToastAction.KeepLocal, _toast.View.Primary);
         Assert.Null(_toast.View.Secondary);
     }
 
@@ -148,7 +124,6 @@ public class ToastPresenterTests
             _toast.ShowProcessing,
             () => _toast.ShowPreview(new string('x', 2000)),
             () => _toast.ShowError(new string('x', 2000)),
-            () => _toast.ShowUpgradeRequired(new EntitlementDecision(false, EntitlementStatus.TrialExpired, "m", OffersUpgrade: true)),
             () => _toast.ShowModelDownloadProgress(new ModelDownloadProgress("f", 1, 3)),
         };
 

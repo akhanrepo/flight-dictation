@@ -8,8 +8,6 @@ public interface IShellActions
 {
     void OpenSettings();
 
-    void OpenAccount();
-
     /// <summary>Shuts down cleanly (see <see cref="ShutdownCoordinator"/>) and exits.</summary>
     void Quit();
 

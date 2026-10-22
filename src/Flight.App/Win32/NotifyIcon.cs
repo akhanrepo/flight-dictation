@@ -207,7 +207,7 @@ public sealed class NotifyIcon : IDisposable
 
                 commands.Add(item.Command);
                 var flags = MF_STRING | (item.Enabled ? 0 : MF_GRAYED) | (item.Checked ? MF_CHECKED : 0);
-                // '&' marks a mnemonic in menus; escape it so "Account & subscription" shows literally.
+                // '&' marks a mnemonic in menus; escape it so a label like "Q&A" shows literally.
                 AppendMenuW(menu, flags, (UIntPtr)commands.Count, item.Text.Replace("&", "&&"));
             }
 
