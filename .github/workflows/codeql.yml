@@ -8,11 +8,15 @@ on:
     - cron: '27 3 * * 1'
 
 permissions:
+  actions: read
   contents: read
   security-events: write
 
 jobs:
   analyze:
+    # Code scanning is free for public repositories only; a private one
+    # can't upload the results without GitHub Advanced Security.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
