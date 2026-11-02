@@ -28,6 +28,10 @@ public sealed class WasapiAudioCapturer : IAudioCapturer, IDisposable
             _samples = [];
             _waveIn = new WaveInEvent
             {
+                // -1 = WAVE_MAPPER: the Windows default input device. NAudio's
+                // default of 0 is just the first mic in the list, which picked
+                // the laptop array even when the user talks into a headset.
+                DeviceNumber = -1,
                 WaveFormat = new WaveFormat(16000, 16, 1),
                 BufferMilliseconds = 50,
             };
