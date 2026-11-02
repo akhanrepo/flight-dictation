@@ -35,4 +35,17 @@ public class ToastLayoutTests
     {
         Assert.Equal(expected, ToastLayout.WidthFor(WithText, measured));
     }
+
+    // Regression: "Didn't catch that" was clipped to the compact width. The
+    // pill's width now comes from the title's own width plus the fixed parts.
+    [Fact]
+    public void Layout_TextStateWidthIsBuiltFromTheTitleWidth()
+    {
+        // 28 padding + 16 indicator + 10 gap + 110 title
+        Assert.Equal(164, ToastLayout.ContentWidthFor(WithText, 109.3));
+        Assert.True(ToastLayout.WidthFor(WithText, ToastLayout.ContentWidthFor(WithText, 109.3)) > ToastLayout.CompactWidth);
+
+        var downloading = WithText with { Progress = 40 };
+        Assert.Equal(164 + 10 + 64, ToastLayout.ContentWidthFor(downloading, 109.3));
+    }
 }

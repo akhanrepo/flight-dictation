@@ -72,10 +72,16 @@ public sealed class WasapiAudioCapturer : IAudioCapturer, IDisposable
                 return [];
             }
 
-            _waveIn.DataAvailable -= OnDataAvailable;
-            _waveIn.StopRecording();
-            _waveIn.Dispose();
+            var waveIn = _waveIn;
             _waveIn = null;
+            waveIn.DataAvailable -= OnDataAvailable;
+
+            // Dispose only once the recording thread has exited. Disposing
+            // straight after StopRecording closed the device while that
+            // thread was still returning buffers to it — two threads tearing
+            // down one waveIn handle.
+            waveIn.RecordingStopped += (_, _) => waveIn.Dispose();
+            waveIn.StopRecording();
 
             var captured = _samples.ToArray();
             _samples = null;

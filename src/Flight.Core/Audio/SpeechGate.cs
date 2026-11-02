@@ -51,6 +51,18 @@ public static class SpeechGate
 
     public static float Rms(ReadOnlySpan<float> samples) => Rms(samples, 0, samples.Length);
 
+    /// <summary>RMS of the loudest <see cref="WindowSamples"/> window: the number the gate compares.</summary>
+    public static float PeakLevel(float[] samples)
+    {
+        var peak = 0f;
+        for (var start = 0; start < samples.Length; start += WindowSamples)
+        {
+            peak = Math.Max(peak, Rms(samples, start, Math.Min(start + WindowSamples, samples.Length)));
+        }
+
+        return peak;
+    }
+
     private static float Rms(ReadOnlySpan<float> samples, int start, int end)
     {
         if (end <= start)

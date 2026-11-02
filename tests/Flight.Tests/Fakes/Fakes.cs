@@ -118,7 +118,18 @@ public sealed class FakeClipboardWriter : IClipboardWriter
     public List<string> Writes { get; } = [];
     public string? LastText => Writes.Count == 0 ? null : Writes[^1];
 
-    public void SetText(string text) => Writes.Add(text);
+    /// <summary>Thrown by every write, as when another app holds the clipboard open.</summary>
+    public Exception? ExceptionToThrow { get; set; }
+
+    public void SetText(string text)
+    {
+        if (ExceptionToThrow is not null)
+        {
+            throw ExceptionToThrow;
+        }
+
+        Writes.Add(text);
+    }
 }
 
 public sealed class FakeDictationUi : IDictationUi
