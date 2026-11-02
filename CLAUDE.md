@@ -22,7 +22,7 @@ Windows dictation / second-brain app for consultants. **Open source (MIT)**, pub
 4. Cloud LLM toggle behind the same inference interface as #1 — **built**
 5. ~~Account + subscription entitlement (Supabase + Stripe)~~ — built, then **removed** for the open-source release (#11)
 
-Post-MVP features (briefs in `docs/briefs/`): 6 tray & app identity, 7 visual design, 8 configurable push-to-talk key, 9 mini indicator + automatic copy (replaced #1's preview), 10 speed, 11 open-source release — all **built**.
+Candidate features not yet briefed are in `docs/backlog.md` (classified next / soon / later / no, with reasons) — a backlog entry is not a brief. Post-MVP features (briefs in `docs/briefs/`): 6 tray & app identity, 7 visual design, 8 configurable push-to-talk key, 9 mini indicator + automatic copy (replaced #1's preview), 10 speed, 11 open-source release — all **built**.
 
 ## Explicit non-goals (do not build, do not design for prematurely)
 
@@ -35,7 +35,7 @@ Post-MVP features (briefs in `docs/briefs/`): 6 tray & app identity, 7 visual de
 - **Features are built one at a time from a brief the user provides.** Do not start a feature without a brief, and do not build ahead of the current brief.
 - **Enter Plan Mode before implementing each feature** and get the plan approved before writing code.
 - **Every acceptance criterion in a brief must map to at least one test.** If a criterion can't be tested, raise it before implementing.
-- Commit to GitHub (`origin` = akhanrepo/upgraded-octo-flight) after each logical step or at end of session. Small, coherent commits.
+- Commit to GitHub (`origin` = akhanrepo/flight-dictation; the old name upgraded-octo-flight redirects) after each logical step or at end of session. Small, coherent commits.
 - Update this file when architecture decisions land (e.g. the ONNX vs llama.cpp decision).
 
 ## Solution structure & file conventions
