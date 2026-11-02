@@ -167,10 +167,12 @@ public class DictationOrchestrator : IDisposable
         {
             case CaptureVerdict.TooShort:
                 // An accidental tap: no models run and nothing is said about it.
+                Record(DictationOutcome.TooShort, samples, settings);
                 ReturnToIdle();
                 return;
             case CaptureVerdict.Silent:
                 // Silence would cost a full STT pass to come back as [BLANK_AUDIO].
+                Record(DictationOutcome.Silent, samples, settings);
                 NothingHeard();
                 return;
         }
@@ -201,6 +203,7 @@ public class DictationOrchestrator : IDisposable
 
             if (raw.Length == 0)
             {
+                Record(DictationOutcome.NoTranscript, samples, settings, sttTime, total: total.Elapsed);
                 NothingHeard();
                 return;
             }
@@ -227,6 +230,7 @@ public class DictationOrchestrator : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Dictation processing failed");
+            Record(DictationOutcome.Failed, samples, settings, total: total.Elapsed, error: ex.Message);
             State = DictationState.Error;
             _ui.ShowError(ex is OperationCanceledException
                 ? "Processing timed out."
@@ -236,22 +240,46 @@ public class DictationOrchestrator : IDisposable
 
         if (cleaned.Length == 0)
         {
+            Record(DictationOutcome.EmptyCleanup, samples, settings, sttTime, total.Elapsed - sttTime, total.Elapsed);
             NothingHeard();
             return;
         }
 
         // Release-to-ready time; the clipboard write and history row after it are milliseconds.
         var processed = total.Elapsed;
-        await DeliverAsync(raw, cleaned, settings);
+        var copied = await DeliverAsync(raw, cleaned, settings);
 
+        Record(copied ? DictationOutcome.Copied : DictationOutcome.ClipboardFailed,
+            samples, settings, sttTime, processed - sttTime, processed);
+    }
+
+    /// <summary>
+    /// One line per dictation, whatever happened to it — so "Didn't catch
+    /// that" in the log says whether the audio was too quiet, whisper heard
+    /// nothing, or cleanup came back empty.
+    /// </summary>
+    private void Record(
+        DictationOutcome outcome,
+        float[] samples,
+        FlightSettings settings,
+        TimeSpan sttTime = default,
+        TimeSpan cleanupTime = default,
+        TimeSpan total = default,
+        string? error = null)
+    {
         _timings?.Record(new DictationTimings(
             DateTimeOffset.UtcNow,
             TimeSpan.FromSeconds(samples.Length / (double)SpeechGate.SampleRate),
             sttTime,
-            processed - sttTime,
-            processed,
+            cleanupTime,
+            total,
             settings.LlmMode.ToStorageValue(),
-            settings.IsTranslating));
+            settings.IsTranslating)
+        {
+            Outcome = outcome,
+            PeakLevel = SpeechGate.PeakLevel(samples),
+            Error = error,
+        });
     }
 
     /// <summary>
@@ -259,10 +287,25 @@ public class DictationOrchestrator : IDisposable
     /// deliberate: the text the user is waiting to paste is never behind a
     /// database write or extraction work.
     /// </summary>
-    private async Task DeliverAsync(string raw, string cleaned, FlightSettings settings)
+    /// <returns>False when the clipboard couldn't be written.</returns>
+    private async Task<bool> DeliverAsync(string raw, string cleaned, FlightSettings settings)
     {
         // The cleaned, target-language text — not the raw source-language transcript.
-        _clipboard.SetText(cleaned);
+        try
+        {
+            _clipboard.SetText(cleaned);
+        }
+        catch (Exception ex)
+        {
+            // Another app can hold the clipboard open. This must land in
+            // Error, not escape: an exception here used to leave the loop in
+            // Processing, and every later hotkey press was ignored.
+            _logger.LogError(ex, "Couldn't write the clipboard");
+            State = DictationState.Error;
+            _ui.ShowError("Couldn't copy to the clipboard. Another app may be using it; try again.");
+            return false;
+        }
+
         State = DictationState.Idle;
         _ui.ShowCopied();
 
@@ -287,6 +330,8 @@ public class DictationOrchestrator : IDisposable
             // worth an error over it.
             _logger.LogError(ex, "Couldn't save the dictation session");
         }
+
+        return true;
     }
 
     /// <summary>Dismiss an error state back to idle.</summary>

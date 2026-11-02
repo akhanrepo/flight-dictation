@@ -37,6 +37,28 @@ public static class ToastLayout
             ? Math.Clamp(Math.Ceiling(measuredContentWidth), CompactWidth, MaxWidth)
             : CompactWidth;
 
+    /// <summary>Horizontal padding around the content, both sides together.</summary>
+    public const double HorizontalPadding = 28;
+
+    /// <summary>The indicator slot (dot, spinner, icon or logo).</summary>
+    public const double IndicatorWidth = 16;
+
+    /// <summary>Gap between the pill's items.</summary>
+    public const double ItemSpacing = 10;
+
+    public const double ProgressBarWidth = 64;
+
+    /// <summary>
+    /// The pill width a text state needs, from the title's own measured
+    /// width. Built from parts rather than by measuring the live content
+    /// panel, which returned a stale width when the window was hidden and
+    /// the title had just been made visible — clipping "Didn't catch that"
+    /// to the compact width.
+    /// </summary>
+    public static double ContentWidthFor(ToastView view, double titleWidth) =>
+        HorizontalPadding + IndicatorWidth + ItemSpacing + Math.Ceiling(titleWidth)
+        + (view.Progress is not null ? ItemSpacing + ProgressBarWidth : 0);
+
     public static int ToPhysical(double dip, double scale) => (int)Math.Ceiling(dip * scale);
 
     public static PixelSize SizeFor(ToastView view, double measuredContentWidth, double scale) => new(

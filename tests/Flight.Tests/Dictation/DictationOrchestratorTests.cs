@@ -115,6 +115,42 @@ public class DictationOrchestratorTests
         Assert.Equal(["capturing", "processing", "copied"], _ui.Events);
     }
 
+    // Regression: a clipboard write that throws (another app holding the
+    // clipboard) escaped the pipeline and left the loop in Processing, so
+    // every later press was ignored and nothing new was ever copied.
+    [Fact]
+    public async Task ClipboardFailure_ShowsAnError_And_TheNextDictationStillWorks()
+    {
+        _clipboard.ExceptionToThrow = new System.Runtime.InteropServices.COMException("OpenClipboard failed");
+        var orchestrator = await DictateAsync();
+
+        Assert.Equal(DictationState.Error, orchestrator.State);
+        Assert.Contains(_ui.Events, e => e.StartsWith("error", StringComparison.Ordinal));
+        Assert.Empty(_sessions.Sessions);
+
+        _clipboard.ExceptionToThrow = null;
+        _cleaner.CleanedToReturn = "Second try.";
+        await DictateAsync(orchestrator);
+
+        Assert.Equal(["Second try."], _clipboard.Writes);
+        Assert.Equal(DictationState.Idle, orchestrator.State);
+    }
+
+    // Regression for the same report: consecutive dictations each reach the clipboard.
+    [Fact]
+    public async Task ConsecutiveDictations_EachUpdateTheClipboard()
+    {
+        var orchestrator = CreateStartedOrchestrator();
+
+        foreach (var text in new[] { "First.", "Second.", "Third." })
+        {
+            _cleaner.CleanedToReturn = text;
+            await DictateAsync(orchestrator);
+        }
+
+        Assert.Equal(["First.", "Second.", "Third."], _clipboard.Writes);
+    }
+
     // Feature #9 criterion: clipboard, then persist, then vocabulary learning
     [Fact]
     public async Task Success_Copies_Then_Persists_Then_Enqueues()

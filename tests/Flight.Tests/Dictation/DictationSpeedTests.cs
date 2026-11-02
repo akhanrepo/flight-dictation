@@ -93,8 +93,10 @@ public class DictationSpeedTests
         Assert.Contains("stt=", timings.ToLogLine());
     }
 
+    // Every dictation gets a line, including the ones that copy nothing, so
+    // the log can say why a dictation produced "Didn't catch that".
     [Fact]
-    public async Task FailedDictation_RecordsNoTimings()
+    public async Task FailedDictation_RecordsItsOutcomeAndError()
     {
         _cleaner.ExceptionToThrow = new InvalidOperationException("boom");
         var orchestrator = Create();
@@ -103,7 +105,72 @@ public class DictationSpeedTests
         _hotkey.Release();
         await orchestrator.ProcessingTask!;
 
-        Assert.Empty(_timings.Recorded);
+        var timings = Assert.Single(_timings.Recorded);
+        Assert.Equal(DictationOutcome.Failed, timings.Outcome);
+        Assert.Equal("boom", timings.Error);
+        Assert.Contains("outcome=failed", timings.ToLogLine());
+        Assert.Contains("error=\"boom\"", timings.ToLogLine());
+    }
+
+    [Fact]
+    public async Task SuccessfulDictation_RecordsCopiedWithItsPeakLevel()
+    {
+        var orchestrator = Create();
+
+        _hotkey.Press();
+        _hotkey.Release();
+        await orchestrator.ProcessingTask!;
+
+        var timings = Assert.Single(_timings.Recorded);
+        Assert.Equal(DictationOutcome.Copied, timings.Outcome);
+        // FakeAudio.Speech() is a 0.1-amplitude sine: RMS ≈ 0.0707.
+        Assert.Equal(0.0707f, timings.PeakLevel!.Value, 3);
+        Assert.Contains("outcome=copied", timings.ToLogLine());
+    }
+
+    [Theory]
+    [InlineData("silent")]
+    [InlineData("no-transcript")]
+    [InlineData("empty-cleanup")]
+    [InlineData("too-short")]
+    public async Task NothingCopied_RecordsWhichStageCameBackEmpty(string stage)
+    {
+        var capturer = new FakeAudioCapturer();
+        var expected = stage switch
+        {
+            "silent" => DictationOutcome.Silent,
+            "no-transcript" => DictationOutcome.NoTranscript,
+            "empty-cleanup" => DictationOutcome.EmptyCleanup,
+            _ => DictationOutcome.TooShort,
+        };
+        if (stage == "silent")
+        {
+            capturer.SamplesToReturn = FakeAudio.Silence();
+        }
+        else if (stage == "too-short")
+        {
+            capturer.SamplesToReturn = FakeAudio.Speech(0.1);
+        }
+        else if (stage == "no-transcript")
+        {
+            _stt.TranscriptToReturn = "[BLANK_AUDIO]";
+        }
+        else
+        {
+            _cleaner.CleanedToReturn = "   ";
+        }
+
+        var orchestrator = new DictationOrchestrator(
+            _hotkey, capturer, _stt, _cleaner, new FakeClipboardWriter(),
+            new InMemorySessionRepository(), new FakeDictationUi(), new FakeVocabularyLearningQueue(),
+            _settings, new FlightOptions(), NullLogger<DictationOrchestrator>.Instance, _activity, _timings);
+        orchestrator.Start();
+
+        _hotkey.Press();
+        _hotkey.Release();
+        await orchestrator.ProcessingTask!;
+
+        Assert.Equal(expected, Assert.Single(_timings.Recorded).Outcome);
     }
 
     // Criterion: the log keeps the last 200 lines

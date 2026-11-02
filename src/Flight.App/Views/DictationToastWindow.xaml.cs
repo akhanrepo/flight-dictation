@@ -25,8 +25,7 @@ namespace Flight.App.Views;
 /// </summary>
 public sealed partial class DictationToastWindow : Window
 {
-    // Horizontal padding (14 each side) around the content, in DIPs.
-    private const double HorizontalPadding = 28;
+    private const double HorizontalPadding = ToastLayout.HorizontalPadding;
 
     // Bar heights follow the level with a centre-weighted shape, so the bars
     // read as a waveform rather than a meter.
@@ -40,6 +39,10 @@ public sealed partial class DictationToastWindow : Window
     private readonly DispatcherQueueTimerWrapper _autoHide;
     private readonly Rectangle[] _bars;
     private readonly Random _jitter = new();
+
+    // Detached copy of TitleText, used only to measure the title: measuring
+    // the live panel of a hidden window gave stale widths.
+    private readonly TextBlock _titleMeasure = new() { TextWrapping = TextWrapping.NoWrap };
 
     private ToastView _view = ToastView.Hidden;
     private PointInt32? _lastPlacedAt;
@@ -188,8 +191,16 @@ public sealed partial class DictationToastWindow : Window
     {
         var scale = WindowMetrics.ScaleFor(_hwnd);
 
-        ContentPanel.Measure(new Size(double.PositiveInfinity, ToastLayout.Height));
-        var measured = ContentPanel.DesiredSize.Width + HorizontalPadding;
+        var measured = 0d;
+        if (view.ShowsText)
+        {
+            _titleMeasure.FontFamily = TitleText.FontFamily;
+            _titleMeasure.FontSize = TitleText.FontSize;
+            _titleMeasure.FontWeight = TitleText.FontWeight;
+            _titleMeasure.Text = TitleText.Text;
+            _titleMeasure.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            measured = ToastLayout.ContentWidthFor(view, Math.Min(_titleMeasure.DesiredSize.Width, TitleText.MaxWidth));
+        }
 
         var size = ToastLayout.SizeFor(view, measured, scale);
         var at = ToastPlacement.Place(size, _positions.Load(), WorkAreas(scale), Primary(scale));

@@ -2,7 +2,29 @@ using System.Globalization;
 
 namespace Flight.Core.Dictation;
 
-/// <summary>Where one dictation's time went, for <c>logs/timings.log</c>.</summary>
+/// <summary>How a dictation ended. Everything but <see cref="Copied"/> left the clipboard alone.</summary>
+public enum DictationOutcome
+{
+    Copied,
+
+    /// <summary>Released before <see cref="FlightOptions.MinimumCaptureDuration"/>: an accidental tap.</summary>
+    TooShort,
+
+    /// <summary>The speech gate found nothing above the silence threshold ("Didn't catch that").</summary>
+    Silent,
+
+    /// <summary>Whisper returned nothing, or only non-speech markers ("Didn't catch that").</summary>
+    NoTranscript,
+
+    /// <summary>Cleanup or translation returned nothing ("Didn't catch that").</summary>
+    EmptyCleanup,
+
+    Failed,
+
+    ClipboardFailed,
+}
+
+/// <summary>Where one dictation's time went, and how it ended, for <c>logs/timings.log</c>.</summary>
 public sealed record DictationTimings(
     DateTimeOffset At,
     TimeSpan Audio,
@@ -12,10 +34,22 @@ public sealed record DictationTimings(
     string LlmMode,
     bool Translated)
 {
-    public string ToLogLine() => string.Create(CultureInfo.InvariantCulture,
-        $"{At:O} audio={Audio.TotalSeconds:F1}s stt={SpeechToText.TotalMilliseconds:F0}ms " +
-        $"cleanup={Cleanup.TotalMilliseconds:F0}ms total={Total.TotalMilliseconds:F0}ms " +
-        $"mode={LlmMode}{(Translated ? " translated" : string.Empty)}");
+    public DictationOutcome Outcome { get; init; } = DictationOutcome.Copied;
+
+    /// <summary>Loudest 30 ms window's RMS (0–1); compare with <see cref="FlightOptions.SilenceThreshold"/>.</summary>
+    public float? PeakLevel { get; init; }
+
+    public string? Error { get; init; }
+
+    public string ToLogLine()
+    {
+        var peak = PeakLevel is { } level ? FormattableString.Invariant($"peak={level:F4} ") : string.Empty;
+        var error = Error is null ? string.Empty : $" error=\"{Error.ReplaceLineEndings(" ")}\"";
+        return string.Create(CultureInfo.InvariantCulture,
+            $"{At:O} outcome={Outcome.ToString().ToLowerInvariant()} audio={Audio.TotalSeconds:F1}s {peak}" +
+            $"stt={SpeechToText.TotalMilliseconds:F0}ms cleanup={Cleanup.TotalMilliseconds:F0}ms " +
+            $"total={Total.TotalMilliseconds:F0}ms mode={LlmMode}{(Translated ? " translated" : string.Empty)}{error}");
+    }
 }
 
 public interface IDictationTimingsLog
