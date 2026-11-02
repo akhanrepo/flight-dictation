@@ -49,7 +49,7 @@ jobs:
           vpk upload github --repoUrl https://github.com/${{ github.repository }}
           --token ${{ secrets.GITHUB_TOKEN }} --publish
           --releaseName "Flight ${{ env.VERSION }}" --tag v${{ env.VERSION }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: flight-${{ env.VERSION }}
           path: Releases/
