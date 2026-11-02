@@ -28,8 +28,6 @@
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
-<!-- Demo: record a short GIF (hold key → pill → paste) and put it at docs/images/demo.gif -->
-
 > **Status: early (v0.2).** Flight works end to end, but it's young: expect rough edges, and expect settings and storage to change between versions. Bug reports with `timings.log` attached are the most useful thing you can send.
 
 ---
