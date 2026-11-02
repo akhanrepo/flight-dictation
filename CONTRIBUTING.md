@@ -5,7 +5,7 @@ Thanks for your interest! Flight is a small project with a few firm conventions.
 ## Ways to help
 
 - **Report a bug:** open an issue with the bug template. Attach `%LOCALAPPDATA%\Flight\logs\errors.log` (and `timings.log` for speed problems) if they're relevant.
-- **Suggest a feature:** start a [Discussion](https://github.com/akhanrepo/flight-dictation/discussions) or open a feature request. Larger features get a written brief first (see below).
+- **Suggest a feature:** check [docs/backlog.md](docs/backlog.md) first (including its "No" list), then start a [Discussion](https://github.com/akhanrepo/flight-dictation/discussions) or open a feature request. Larger features get a written brief first (see below).
 - **Pick up an issue:** look for `good first issue` or `help wanted`, and comment so nobody duplicates the work.
 - **Improve docs:** always welcome, and no brief needed.
 
